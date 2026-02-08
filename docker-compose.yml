@@ -1,0 +1,23 @@
+services:
+  mongodb:
+    image: mongo:7
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+
+  app:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - MONGODB_URI=mongodb://mongodb:27017/swe5006
+      - NEXTAUTH_SECRET=replace-with-strong-secret
+      - NEXTAUTH_URL=http://localhost:3000
+    depends_on:
+      - mongodb
+
+volumes:
+  mongo-data:
