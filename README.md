@@ -17,6 +17,7 @@ NEXTAUTH_SECRET=replace-with-strong-secret
 NEXTAUTH_URL=http://localhost:3000
 GITHUB_ID=
 GITHUB_SECRET=
+DNS_SERVERS=1.1.1.1,1.0.0.1,8.8.8.8
 ```
 
 ## Run locally
@@ -39,3 +40,13 @@ docker compose up --build
 - Mongo connection: `src/lib/db/mongodb.ts`
 - Auth config: `src/modules/auth/auth.options.ts`
 - Middleware protection: `src/middleware.ts`
+
+## Optional DNS override
+
+If your environment has DNS resolution issues (for example, Node.js using `127.0.0.53`), you can set:
+
+```
+DNS_SERVERS=1.1.1.1,1.0.0.1
+```
+
+This forces Node.js to use explicit DNS servers before connecting to MongoDB.
