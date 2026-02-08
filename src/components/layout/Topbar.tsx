@@ -1,11 +1,28 @@
 "use client";
 
-import { signOut } from "next-auth/react";
+import { signOut, useSession } from "next-auth/react";
 import { Search, Filter, LogOut, Plus } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
 export function Topbar() {
+  const { data: session } = useSession();
+  const name = session?.user?.name
+    ? session.user.name
+        .split(" ")
+        .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+        .join(" ")
+    : "";
+  const role = session?.user?.role
+    ? session.user.role.charAt(0).toUpperCase() + session.user.role.slice(1)
+    : "";
+  const initials = name
+    .split(" ")
+    .map((w) => w[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
+
   return (
     <header className="sticky top-0 z-10 flex items-center justify-between gap-4 border-b border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-6 py-4">
       <div className="flex flex-1 items-center gap-3">
@@ -37,11 +54,11 @@ export function Topbar() {
         </Button>
         <div className="flex items-center gap-3 rounded-full border border-[color:var(--color-border)] bg-white px-3 py-2 text-sm">
           <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[color:var(--color-surface-muted)] text-xs font-semibold">
-            JL
+            {initials}
           </div>
           <div className="leading-tight">
-            <p className="font-medium">Jules Layton</p>
-            <p className="text-xs text-[color:var(--color-muted)]">Lead PM</p>
+            <p className="font-medium">{name}</p>
+            <p className="text-xs text-[color:var(--color-muted)]">{role}</p>
           </div>
         </div>
       </div>
