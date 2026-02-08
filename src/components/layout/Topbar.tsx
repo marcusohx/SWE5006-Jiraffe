@@ -1,6 +1,7 @@
 "use client";
 
-import { Search, Filter, Plus } from "lucide-react";
+import { signOut } from "next-auth/react";
+import { Search, Filter, LogOut, Plus } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
@@ -21,6 +22,18 @@ export function Topbar() {
         <Button size="sm">
           <Plus className="h-4 w-4" />
           New Ticket
+        </Button>
+        <Button
+          variant="secondary"
+          size="sm"
+          className="group transition hover:-translate-y-0.5 hover:border-[color:var(--color-accent)] hover:bg-[color:var(--color-accent-soft)]"
+          onClick={() => signOut({ callbackUrl: "/login" })}
+        >
+          <LogOut className="h-4 w-4" />
+          <span className="relative">
+            Sign out
+            <span className="absolute -bottom-1 left-0 h-[2px] w-0 rounded-full bg-[color:var(--color-accent)] transition-all duration-300 group-hover:w-full" />
+          </span>
         </Button>
         <div className="flex items-center gap-3 rounded-full border border-[color:var(--color-border)] bg-white px-3 py-2 text-sm">
           <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[color:var(--color-surface-muted)] text-xs font-semibold">

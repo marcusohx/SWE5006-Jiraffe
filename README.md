@@ -4,7 +4,7 @@ Enterprise-style Next.js App Router project with layered architecture (controlle
 
 ## Requirements
 
-- Node.js 20.19+
+- Node.js 24.13.0
 - MongoDB (local or Docker)
 
 ## Environment
