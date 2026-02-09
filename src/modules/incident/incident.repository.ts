@@ -7,6 +7,7 @@ import type {
   UpdateIncidentRepositoryInput,
 } from "@/modules/incident/incident.model";
 import { IncidentModel } from "@/modules/incident/incident.model";
+import "@/modules/user/user.model";
 
 function mapIncident(doc: Record<string, unknown>): Incident {
   const d = doc as Record<string, any>;
