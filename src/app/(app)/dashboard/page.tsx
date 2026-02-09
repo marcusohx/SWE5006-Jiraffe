@@ -2,10 +2,12 @@ import { ArrowUpRight } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { activityFeed, dashboardMetrics, tickets } from "@/lib/mock-data";
+import { activityFeed, dashboardMetrics } from "@/lib/mock-data";
+import { listIncidents } from "@/modules/incident/incident.service";
 
-export default function DashboardPage() {
-  const spotlightTicket = tickets[0];
+export default async function DashboardPage() {
+  const incidents = await listIncidents();
+  const spotlightTicket = incidents[0] ?? null;
 
   return (
     <div className="space-y-8">
@@ -41,25 +43,21 @@ export default function DashboardPage() {
         <Card>
           <CardHeader>
             <CardDescription>Focus Ticket</CardDescription>
-            <CardTitle>{spotlightTicket.title}</CardTitle>
+            <CardTitle>{spotlightTicket?.title ?? "No incidents"}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <p className="text-sm text-[color:var(--color-muted)]">{spotlightTicket.summary}</p>
-            <div className="flex flex-wrap gap-2">
-              {spotlightTicket.tags.map((tag) => (
-                <span
-                  key={tag}
-                  className="rounded-full bg-[color:var(--color-surface-muted)] px-2 py-1 text-xs font-semibold text-[color:var(--color-muted)]"
-                >
-                  {tag}
-                </span>
-              ))}
-            </div>
-            <div className="flex flex-wrap gap-3 text-sm text-[color:var(--color-muted)]">
-              <span>Assignee: {spotlightTicket.assignee}</span>
-              <span>Reporter: {spotlightTicket.reporter}</span>
-              <span>Updated: {spotlightTicket.updatedAt}</span>
-            </div>
+            {spotlightTicket ? (
+              <>
+                <p className="text-sm text-[color:var(--color-muted)]">{spotlightTicket.description}</p>
+                <div className="flex flex-wrap gap-3 text-sm text-[color:var(--color-muted)]">
+                  <span>Assignee: {spotlightTicket.assignedToName}</span>
+                  <span>Reporter: {spotlightTicket.createdByName}</span>
+                  <span>Updated: {new Date(spotlightTicket.updatedAt).toLocaleDateString()}</span>
+                </div>
+              </>
+            ) : (
+              <p className="text-sm text-[color:var(--color-muted)]">No incidents to display.</p>
+            )}
           </CardContent>
         </Card>
 

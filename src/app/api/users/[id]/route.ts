@@ -6,12 +6,13 @@ import {
   updateUserByIdController,
 } from "@/modules/user/user.controller";
 
-type Params = { params: { id: string } };
+type Params = { params: Promise<{ id: string }> };
 
 export async function GET(_request: Request, { params }: Params) {
   try {
-    const id = parseUserId(params.id);
-    return await getUserByIdController(id);
+    const { id } = await params;
+    const parsedId = parseUserId(id);
+    return await getUserByIdController(parsedId);
   } catch (error) {
     return handleApiError(error);
   }
@@ -19,10 +20,11 @@ export async function GET(_request: Request, { params }: Params) {
 
 export async function PUT(request: Request, { params }: Params) {
   try {
-    const id = parseUserId(params.id);
+    const { id } = await params;
+    const parsedId = parseUserId(id);
     const body = await request.json();
     const input = parseUpdateUser(body);
-    return await updateUserByIdController(id, input);
+    return await updateUserByIdController(parsedId, input);
   } catch (error) {
     return handleApiError(error);
   }
@@ -30,8 +32,9 @@ export async function PUT(request: Request, { params }: Params) {
 
 export async function DELETE(_request: Request, { params }: Params) {
   try {
-    const id = parseUserId(params.id);
-    return await deleteUserByIdController(id);
+    const { id } = await params;
+    const parsedId = parseUserId(id);
+    return await deleteUserByIdController(parsedId);
   } catch (error) {
     return handleApiError(error);
   }

@@ -1,18 +1,18 @@
 import { handleApiError } from "@/lib/api-error";
-import { parseProductId, parseUpdateProduct } from "@/modules/product/product.dto";
+import { parseIncidentId, parseUpdateIncident } from "@/modules/incident/incident.dto";
 import {
-  deleteProductByIdController,
-  getProductByIdController,
-  updateProductByIdController,
-} from "@/modules/product/product.controller";
+  deleteIncidentByIdController,
+  getIncidentByIdController,
+  updateIncidentByIdController,
+} from "@/modules/incident/incident.controller";
 
 type Params = { params: Promise<{ id: string }> };
 
 export async function GET(_request: Request, { params }: Params) {
   try {
     const { id } = await params;
-    const parsedId = parseProductId(id);
-    return await getProductByIdController(parsedId);
+    const parsedId = parseIncidentId(id);
+    return await getIncidentByIdController(parsedId);
   } catch (error) {
     return handleApiError(error);
   }
@@ -21,10 +21,10 @@ export async function GET(_request: Request, { params }: Params) {
 export async function PUT(request: Request, { params }: Params) {
   try {
     const { id } = await params;
-    const parsedId = parseProductId(id);
+    const parsedId = parseIncidentId(id);
     const body = await request.json();
-    const input = parseUpdateProduct(body);
-    return await updateProductByIdController(parsedId, input);
+    const input = parseUpdateIncident(body);
+    return await updateIncidentByIdController(parsedId, input);
   } catch (error) {
     return handleApiError(error);
   }
@@ -33,8 +33,8 @@ export async function PUT(request: Request, { params }: Params) {
 export async function DELETE(_request: Request, { params }: Params) {
   try {
     const { id } = await params;
-    const parsedId = parseProductId(id);
-    return await deleteProductByIdController(parsedId);
+    const parsedId = parseIncidentId(id);
+    return await deleteIncidentByIdController(parsedId);
   } catch (error) {
     return handleApiError(error);
   }
