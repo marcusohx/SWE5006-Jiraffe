@@ -4,9 +4,15 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { DataTable } from "@/components/data/DataTable";
-import { tickets } from "@/lib/mock-data";
+import { listIncidents } from "@/modules/incident/incident.service";
 
-export default function TicketsPage() {
+export default async function TicketsPage() {
+  const incidents = await listIncidents();
+
+  const openCount = incidents.filter((i) => i.status === "Open").length;
+  const inProgressCount = incidents.filter((i) => i.status === "In Progress").length;
+  const closedCount = incidents.filter((i) => i.status === "Closed").length;
+
   return (
     <div className="space-y-6">
       <section className="flex flex-wrap items-center justify-between gap-4">
@@ -34,13 +40,13 @@ export default function TicketsPage() {
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[color:var(--color-muted)]" />
               <Input className="pl-9" placeholder="Search tickets" />
             </div>
-            <Badge variant="info">In Progress 12</Badge>
-            <Badge variant="warning">Review 6</Badge>
-            <Badge variant="success">Done 42</Badge>
+            <Badge variant="default">Open {openCount}</Badge>
+            <Badge variant="info">In Progress {inProgressCount}</Badge>
+            <Badge variant="success">Closed {closedCount}</Badge>
           </div>
         </CardHeader>
         <CardContent>
-          <DataTable rows={tickets} />
+          <DataTable rows={incidents} />
         </CardContent>
       </Card>
     </div>

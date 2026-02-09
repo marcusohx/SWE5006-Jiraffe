@@ -8,51 +8,52 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import type { Ticket } from "@/lib/mock-data";
+import type { IncidentSeverity, IncidentStatus, IncidentWithNames } from "@/modules/incident/incident.model";
 
-const statusVariant: Record<Ticket["status"], "default" | "info" | "success" | "warning"> = {
-  Backlog: "default",
+const statusVariant: Record<IncidentStatus, "default" | "info" | "success"> = {
+  Open: "default",
   "In Progress": "info",
-  Review: "warning",
-  Done: "success",
+  Closed: "success",
 };
 
-const priorityVariant: Record<Ticket["priority"], "default" | "info" | "warning" | "danger"> = {
+const severityVariant: Record<IncidentSeverity, "default" | "info" | "warning" | "danger"> = {
   Low: "default",
   Medium: "info",
   High: "warning",
   Critical: "danger",
 };
 
-export function DataTable({ rows }: { rows: Ticket[] }) {
+export function DataTable({ rows }: { rows: IncidentWithNames[] }) {
   return (
     <Table>
       <TableHeader>
         <TableRow>
           <TableHead>Ticket</TableHead>
           <TableHead>Status</TableHead>
-          <TableHead>Priority</TableHead>
+          <TableHead>Severity</TableHead>
           <TableHead>Assignee</TableHead>
           <TableHead>Updated</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
-        {rows.map((ticket) => (
-          <TableRow key={ticket.id}>
+        {rows.map((incident) => (
+          <TableRow key={incident.id}>
             <TableCell>
-              <Link className="font-semibold text-[color:var(--color-foreground)]" href={`/tickets/${ticket.id}`}>
-                {ticket.title}
+              <Link className="font-semibold text-[color:var(--color-foreground)]" href={`/tickets/${incident.id}`}>
+                {incident.title}
               </Link>
-              <p className="mt-1 text-xs text-[color:var(--color-muted)]">{ticket.id}</p>
+              <p className="mt-1 text-xs text-[color:var(--color-muted)]">{incident.incidentId}</p>
             </TableCell>
             <TableCell>
-              <Badge variant={statusVariant[ticket.status]}>{ticket.status}</Badge>
+              <Badge variant={statusVariant[incident.status]}>{incident.status}</Badge>
             </TableCell>
             <TableCell>
-              <Badge variant={priorityVariant[ticket.priority]}>{ticket.priority}</Badge>
+              <Badge variant={severityVariant[incident.severity]}>{incident.severity}</Badge>
             </TableCell>
-            <TableCell>{ticket.assignee}</TableCell>
-            <TableCell className="text-[color:var(--color-muted)]">{ticket.updatedAt}</TableCell>
+            <TableCell>{incident.assignedToName}</TableCell>
+            <TableCell className="text-[color:var(--color-muted)]">
+              {new Date(incident.updatedAt).toLocaleDateString()}
+            </TableCell>
           </TableRow>
         ))}
       </TableBody>
