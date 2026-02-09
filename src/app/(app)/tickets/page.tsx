@@ -1,4 +1,5 @@
 import { Filter, Plus, Search } from "lucide-react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -25,9 +26,11 @@ export default async function TicketsPage() {
             <Filter className="h-4 w-4" />
             Advanced Filters
           </Button>
-          <Button size="sm">
-            <Plus className="h-4 w-4" />
-            Create Ticket
+          <Button size="sm" asChild>
+            <Link href="?create=true">
+              <Plus className="h-4 w-4" />
+              Create Ticket
+            </Link>
           </Button>
         </div>
       </section>

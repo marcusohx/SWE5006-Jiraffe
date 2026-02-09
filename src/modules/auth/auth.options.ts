@@ -1,12 +1,11 @@
 import type { NextAuthOptions } from "next-auth";
-import type { Provider } from "next-auth/providers";
 import CredentialsProvider from "next-auth/providers/credentials";
 import GitHubProvider from "next-auth/providers/github";
 import { env } from "@/lib/config";
 import { parseCredentials } from "@/modules/auth/auth.dto";
 import { authenticateWithPassword } from "@/modules/auth/auth.service";
 
-const providers: Provider[] = [];
+const providers: NonNullable<NextAuthOptions["providers"]> = [];
 
 if (env.GITHUB_ID && env.GITHUB_SECRET) {
   providers.push(
@@ -55,7 +54,8 @@ export const authOptions: NextAuthOptions = {
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
-        token.role = (user as { role?: string }).role ?? "user";
+        const role = (user as { role?: "user" | "admin" }).role;
+        token.role = role ?? "user";
       }
       return token;
     },

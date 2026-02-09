@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import { connectMongo } from "@/lib/db/mongodb";
+import { capitalizeName } from "@/lib/utils";
 import type {
   CreateIncidentRepositoryInput,
   Incident,
@@ -34,9 +35,9 @@ function mapIncidentWithNames(doc: Record<string, unknown>): IncidentWithNames {
   const base = mapIncident(doc);
   return {
     ...base,
-    createdByName: d.created_by?.name ?? "Unknown",
-    assignedByName: d.assigned_by?.name ?? "Unknown",
-    assignedToName: d.assigned_to?.name ?? "Unknown",
+    createdByName: capitalizeName(d.created_by?.name ?? "Unknown"),
+    assignedByName: capitalizeName(d.assigned_by?.name ?? "Unknown"),
+    assignedToName: capitalizeName(d.assigned_to?.name ?? "Unknown"),
   };
 }
 
