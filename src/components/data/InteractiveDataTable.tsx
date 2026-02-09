@@ -11,7 +11,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { cn } from "@/lib/utils";
+import { cn, formatDisplayDate } from "@/lib/utils";
 import type { IncidentSeverity, IncidentStatus, IncidentWithNames } from "@/modules/incident/incident.model";
 
 export type SortColumn = "ticket" | "status" | "severity" | "assignee" | "updated";
@@ -120,7 +120,7 @@ export function InteractiveDataTable({
             </TableCell>
             <TableCell>{incident.assignedToName}</TableCell>
             <TableCell className="text-[color:var(--color-muted)]">
-              {new Date(incident.updatedAt).toLocaleDateString()}
+              {formatDisplayDate(incident.updatedAt)}
             </TableCell>
             <TableCell>
               <button

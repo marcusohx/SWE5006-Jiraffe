@@ -8,6 +8,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { formatDisplayDate } from "@/lib/utils";
 import type { IncidentSeverity, IncidentStatus, IncidentWithNames } from "@/modules/incident/incident.model";
 
 const statusVariant: Record<IncidentStatus, "default" | "info" | "success"> = {
@@ -52,7 +53,7 @@ export function DataTable({ rows }: { rows: IncidentWithNames[] }) {
             </TableCell>
             <TableCell>{incident.assignedToName}</TableCell>
             <TableCell className="text-[color:var(--color-muted)]">
-              {new Date(incident.updatedAt).toLocaleDateString()}
+              {formatDisplayDate(incident.updatedAt)}
             </TableCell>
           </TableRow>
         ))}

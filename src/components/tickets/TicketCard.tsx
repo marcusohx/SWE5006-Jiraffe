@@ -1,5 +1,6 @@
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+import { formatDisplayDate } from "@/lib/utils";
 import type { IncidentSeverity, IncidentWithNames } from "@/modules/incident/incident.model";
 
 const severityVariant: Record<IncidentSeverity, "default" | "warning" | "danger" | "info"> = {
@@ -25,7 +26,7 @@ export function TicketCard({ ticket }: { ticket: IncidentWithNames }) {
         <p className="text-xs text-[color:var(--color-muted)]">{ticket.description}</p>
         <div className="flex items-center justify-between text-xs text-[color:var(--color-muted)]">
           <span>Assignee: {ticket.assignedToName}</span>
-          <span>{new Date(ticket.updatedAt).toLocaleDateString()}</span>
+          <span>{formatDisplayDate(ticket.updatedAt)}</span>
         </div>
       </CardContent>
     </Card>

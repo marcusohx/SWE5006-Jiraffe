@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { InteractiveDataTable, type SortColumn, type SortState } from "@/components/data/InteractiveDataTable";
 import { DeleteIncidentConfirmModal } from "@/components/tickets/DeleteIncidentConfirmModal";
@@ -42,6 +42,23 @@ export function TicketsTableSection({ initialRows }: { initialRows: IncidentWith
   const [incidentToDelete, setIncidentToDelete] = useState<IncidentWithNames | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setRows(initialRows);
+  }, [initialRows]);
+
+  useEffect(() => {
+    if (!incidentToDelete) {
+      return;
+    }
+
+    const stillExists = rows.some((row) => row.id === incidentToDelete.id);
+    if (!stillExists) {
+      setIncidentToDelete(null);
+      setDeleteError(null);
+      setIsDeleting(false);
+    }
+  }, [rows, incidentToDelete]);
 
   const filteredRows = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();

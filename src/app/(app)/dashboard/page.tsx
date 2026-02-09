@@ -2,6 +2,7 @@ import { ArrowUpRight } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { formatDisplayDate } from "@/lib/utils";
 import { activityFeed, dashboardMetrics } from "@/lib/mock-data";
 import { listIncidents } from "@/modules/incident/incident.service";
 
@@ -52,7 +53,7 @@ export default async function DashboardPage() {
                 <div className="flex flex-wrap gap-3 text-sm text-[color:var(--color-muted)]">
                   <span>Assignee: {spotlightTicket.assignedToName}</span>
                   <span>Reporter: {spotlightTicket.createdByName}</span>
-                  <span>Updated: {new Date(spotlightTicket.updatedAt).toLocaleDateString()}</span>
+                  <span>Updated: {formatDisplayDate(spotlightTicket.updatedAt)}</span>
                 </div>
               </>
             ) : (

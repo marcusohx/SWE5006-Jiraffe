@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dropdown, DropdownItem } from "@/components/ui/dropdown";
-import { capitalizeName } from "@/lib/utils";
+import { capitalizeName, formatDisplayDate } from "@/lib/utils";
 import type { IncidentSeverity, IncidentStatus, IncidentWithNames } from "@/modules/incident/incident.model";
 
 type ApiSuccess<T> = { success: true; data: T };
@@ -294,7 +294,7 @@ export function TicketMetadata({ incident }: { incident: IncidentWithNames }) {
         {closedOn ? (
           <div>
             <p className="text-xs uppercase text-[color:var(--color-muted)]">Closed On</p>
-            <p className="text-sm font-medium">{new Date(closedOn).toLocaleDateString()}</p>
+            <p className="text-sm font-medium">{formatDisplayDate(closedOn)}</p>
           </div>
         ) : null}
 

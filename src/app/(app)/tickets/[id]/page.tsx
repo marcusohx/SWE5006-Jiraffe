@@ -6,6 +6,7 @@ import { EditableTicketDetails } from "@/components/tickets/EditableTicketDetail
 import { TicketMetadata } from "@/components/tickets/TicketMetadata";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { formatDisplayDate } from "@/lib/utils";
 import { getIncidentById } from "@/modules/incident/incident.service";
 
 export default async function TicketDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -46,7 +47,7 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ i
             <div className="grid gap-2 text-sm text-[color:var(--color-muted)]">
               <div className="flex items-center gap-2">
                 <Calendar className="h-4 w-4" />
-                Updated {new Date(incident.updatedAt).toLocaleDateString()}
+                Updated {formatDisplayDate(incident.updatedAt)}
               </div>
               <div className="flex items-center gap-2">
                 <User className="h-4 w-4" />

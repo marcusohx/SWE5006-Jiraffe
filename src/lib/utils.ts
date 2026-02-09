@@ -1,6 +1,13 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 
+const displayDateFormatter = new Intl.DateTimeFormat("en-GB", {
+  timeZone: "UTC",
+  day: "2-digit",
+  month: "2-digit",
+  year: "numeric",
+});
+
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
@@ -19,4 +26,9 @@ export function capitalizeName(name: string): string {
       return `${first}${rest}`;
     })
     .join(" ");
+}
+
+export function formatDisplayDate(value: Date | string): string {
+  const date = value instanceof Date ? value : new Date(value);
+  return displayDateFormatter.format(date);
 }
