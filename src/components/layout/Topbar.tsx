@@ -1,10 +1,10 @@
 "use client";
 
 import { signOut, useSession } from "next-auth/react";
-import Link from "next/link";
-import { Search, Filter, LogOut, Plus } from "lucide-react";
+import { Search, Filter, LogOut } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { CreateTicketButton } from "@/components/tickets/CreateTicketButton";
 
 export function Topbar() {
   const { data: session } = useSession();
@@ -37,12 +37,7 @@ export function Topbar() {
         </Button>
       </div>
       <div className="flex items-center gap-3">
-        <Button size="sm" asChild>
-          <Link href="?create=true">
-            <Plus className="h-4 w-4" />
-            New Ticket
-          </Link>
-        </Button>
+        <CreateTicketButton label="New Ticket" />
         <Button
           variant="secondary"
           size="sm"

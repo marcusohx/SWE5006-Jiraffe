@@ -3,6 +3,7 @@ import { z } from "zod";
 export const incidentIdSchema = z.string().min(1, "Incident id is required");
 
 export const createIncidentSchema = z.object({
+  teamId: z.number().int().positive("Team id is required"),
   title: z.string().min(1, "Title is required"),
   description: z.string().min(1, "Description is required"),
   severity: z.enum(["Low", "Medium", "High", "Critical"]),

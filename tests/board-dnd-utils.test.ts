@@ -2,10 +2,13 @@ import { describe, expect, it } from "vitest";
 import type { IncidentStatus, IncidentWithNames } from "@/modules/incident/incident.model";
 import { moveIncidentInMemory, resolveDropTarget } from "@/components/board/board-dnd-utils";
 
+let incidentSequence = 1;
+
 function makeIncident(id: string, status: IncidentStatus, boardOrder: number): IncidentWithNames {
   return {
     id,
-    incidentId: `INC-${id}`,
+    incidentId: incidentSequence++,
+    teamId: 1,
     title: `Incident ${id}`,
     description: "desc",
     severity: "Low",

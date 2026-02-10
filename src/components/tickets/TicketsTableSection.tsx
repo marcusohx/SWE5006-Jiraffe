@@ -1,11 +1,14 @@
 "use client";
 
+import { Building2, Check, ChevronDown } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { InteractiveDataTable, type SortColumn, type SortState } from "@/components/data/InteractiveDataTable";
 import { DeleteIncidentConfirmModal } from "@/components/tickets/DeleteIncidentConfirmModal";
 import { TicketsTableControls } from "@/components/tickets/TicketsTableControls";
+import { Dropdown, DropdownItem } from "@/components/ui/dropdown";
 import { Badge } from "@/components/ui/badge";
+import { formatIncidentCode } from "@/lib/utils";
 import type { IncidentSeverity, IncidentStatus, IncidentWithNames } from "@/modules/incident/incident.model";
 
 type ApiSuccess<T> = { success: true; data: T };
@@ -24,12 +27,25 @@ const severityOrder: Record<IncidentSeverity, number> = {
   Low: 3,
 };
 
+export type TeamScopeOption = {
+  teamId: number;
+  name: string;
+};
+
 function includesIgnoreCase(value: string, query: string) {
   return value.toLowerCase().includes(query);
 }
 
-export function TicketsTableSection({ initialRows }: { initialRows: IncidentWithNames[] }) {
+export function TicketsTableSection({
+  initialRows,
+  teamOptions,
+}: {
+  initialRows: IncidentWithNames[];
+  teamOptions: TeamScopeOption[];
+}) {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [rows, setRows] = useState<IncidentWithNames[]>(initialRows);
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -47,31 +63,73 @@ export function TicketsTableSection({ initialRows }: { initialRows: IncidentWith
     setRows(initialRows);
   }, [initialRows]);
 
+  const selectedTeamId = useMemo(() => {
+    const queryTeam = searchParams.get("team");
+    const parsedTeamId = queryTeam ? Number.parseInt(queryTeam, 10) : Number.NaN;
+    if (Number.isInteger(parsedTeamId) && teamOptions.some((team) => team.teamId === parsedTeamId)) {
+      return parsedTeamId;
+    }
+    return teamOptions[0]?.teamId ?? null;
+  }, [teamOptions, searchParams]);
+
+  useEffect(() => {
+    if (selectedTeamId === null) {
+      return;
+    }
+    if (searchParams.get("team") === String(selectedTeamId)) {
+      return;
+    }
+
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("team", String(selectedTeamId));
+    const query = params.toString();
+    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+  }, [selectedTeamId, searchParams, router, pathname]);
+
+  const onSelectTeam = (teamId: number) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("team", String(teamId));
+    const query = params.toString();
+    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+  };
+
+  const selectedTeam = useMemo(() => {
+    return teamOptions.find((team) => team.teamId === selectedTeamId) ?? null;
+  }, [teamOptions, selectedTeamId]);
+
+  const teamScopedRows = useMemo(() => {
+    if (selectedTeamId === null) {
+      return [];
+    }
+    return rows.filter((incident) => incident.teamId === selectedTeamId);
+  }, [rows, selectedTeamId]);
+
   useEffect(() => {
     if (!incidentToDelete) {
       return;
     }
 
-    const stillExists = rows.some((row) => row.id === incidentToDelete.id);
+    const stillExists = teamScopedRows.some((row) => row.id === incidentToDelete.id);
     if (!stillExists) {
       setIncidentToDelete(null);
       setDeleteError(null);
       setIsDeleting(false);
     }
-  }, [rows, incidentToDelete]);
+  }, [teamScopedRows, incidentToDelete]);
 
   const filteredRows = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
     const fromDate = updatedFrom ? new Date(`${updatedFrom}T00:00:00`) : null;
     const toDate = updatedTo ? new Date(`${updatedTo}T23:59:59.999`) : null;
 
-    return rows.filter((incident) => {
+    return teamScopedRows.filter((incident) => {
       const updatedDate = new Date(incident.updatedAt);
 
       if (q) {
         const matchesSearch =
           includesIgnoreCase(incident.title, q) ||
-          includesIgnoreCase(incident.incidentId, q) ||
+          includesIgnoreCase(formatIncidentCode(incident.incidentId), q) ||
+          includesIgnoreCase(String(incident.incidentId), q) ||
           includesIgnoreCase(incident.description, q) ||
           includesIgnoreCase(incident.assignedToName, q) ||
           includesIgnoreCase(incident.status, q) ||
@@ -99,7 +157,7 @@ export function TicketsTableSection({ initialRows }: { initialRows: IncidentWith
 
       return true;
     });
-  }, [rows, searchQuery, statusFilter, severityFilter, updatedFrom, updatedTo]);
+  }, [teamScopedRows, searchQuery, statusFilter, severityFilter, updatedFrom, updatedTo]);
 
   const visibleRows = useMemo(() => {
     if (!sort) {
@@ -201,24 +259,62 @@ export function TicketsTableSection({ initialRows }: { initialRows: IncidentWith
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <TicketsTableControls
-          searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
-          statusFilter={statusFilter}
-          onToggleStatus={onToggleStatus}
-          severityFilter={severityFilter}
-          onToggleSeverity={onToggleSeverity}
-          updatedFrom={updatedFrom}
-          onUpdatedFromChange={setUpdatedFrom}
-          updatedTo={updatedTo}
-          onUpdatedToChange={setUpdatedTo}
-          onClearAll={onClearAll}
-        />
-        <div className="flex flex-wrap gap-2">
-          <Badge variant="default">Open {counts.open}</Badge>
-          <Badge variant="info">In Progress {counts.inProgress}</Badge>
-          <Badge variant="success">Closed {counts.closed}</Badge>
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div className="flex min-w-0 flex-1 flex-col gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <Dropdown
+              trigger={
+                <div className="flex min-h-11 min-w-[240px] items-center gap-3 rounded-xl border border-[color:var(--color-border)] bg-white px-4 py-2 text-sm shadow-[0_12px_30px_-25px_rgba(15,23,42,0.6)]">
+                  <Building2 className="h-4 w-4 text-[color:var(--color-muted)]" />
+                  <div className="flex min-w-0 flex-1 flex-col text-left">
+                    <span className="text-[10px] uppercase tracking-[0.16em] text-[color:var(--color-muted)]">Team Scope</span>
+                    <span className="truncate font-medium text-[color:var(--color-foreground)]">
+                      {selectedTeam ? selectedTeam.name : "No team available"}
+                    </span>
+                  </div>
+                  <ChevronDown className="h-4 w-4 text-[color:var(--color-muted)]" />
+                </div>
+              }
+            >
+              {teamOptions.length === 0 ? (
+                <DropdownItem disabled>No teams assigned</DropdownItem>
+              ) : (
+                teamOptions.map((team) => (
+                  <DropdownItem
+                    key={team.teamId}
+                    selected={team.teamId === selectedTeamId}
+                    onClick={() => onSelectTeam(team.teamId)}
+                  >
+                    <span className="mr-2 inline-flex h-5 w-5 items-center justify-center">
+                      {team.teamId === selectedTeamId ? <Check className="h-3.5 w-3.5" /> : null}
+                    </span>
+                    <span>{team.name}</span>
+                    <span className="ml-auto text-xs text-[color:var(--color-muted)]">#{team.teamId}</span>
+                  </DropdownItem>
+                ))
+              )}
+            </Dropdown>
+            {selectedTeam ? <Badge variant="default">Team ID {selectedTeam.teamId}</Badge> : null}
+          </div>
+
+          <TicketsTableControls
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
+            statusFilter={statusFilter}
+            onToggleStatus={onToggleStatus}
+            severityFilter={severityFilter}
+            onToggleSeverity={onToggleSeverity}
+            updatedFrom={updatedFrom}
+            onUpdatedFromChange={setUpdatedFrom}
+            updatedTo={updatedTo}
+            onUpdatedToChange={setUpdatedTo}
+            onClearAll={onClearAll}
+          />
+        </div>
+        <div className="flex shrink-0 flex-nowrap items-center gap-2">
+          <Badge className="whitespace-nowrap" variant="default">Open {counts.open}</Badge>
+          <Badge className="whitespace-nowrap" variant="info">In Progress {counts.inProgress}</Badge>
+          <Badge className="whitespace-nowrap" variant="success">Closed {counts.closed}</Badge>
         </div>
       </div>
 

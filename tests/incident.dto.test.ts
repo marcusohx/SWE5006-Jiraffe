@@ -1,5 +1,30 @@
 import { describe, expect, it } from "vitest";
-import { updateIncidentSchema } from "@/modules/incident/incident.dto";
+import { createIncidentSchema, updateIncidentSchema } from "@/modules/incident/incident.dto";
+
+describe("createIncidentSchema", () => {
+  it("requires numeric teamId", () => {
+    const result = createIncidentSchema.safeParse({
+      teamId: 2,
+      title: "Test",
+      description: "Description",
+      severity: "Low",
+      assignedBy: "u1",
+      assignedTo: "u2",
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects missing teamId", () => {
+    const result = createIncidentSchema.safeParse({
+      title: "Test",
+      description: "Description",
+      severity: "Low",
+      assignedBy: "u1",
+      assignedTo: "u2",
+    });
+    expect(result.success).toBe(false);
+  });
+});
 
 describe("updateIncidentSchema", () => {
   it("accepts finite boardOrder values", () => {

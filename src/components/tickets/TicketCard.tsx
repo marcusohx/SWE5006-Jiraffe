@@ -1,6 +1,6 @@
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { cn, formatDisplayDate } from "@/lib/utils";
+import { cn, formatDisplayDate, formatIncidentCode } from "@/lib/utils";
 import type { IncidentSeverity, IncidentWithNames } from "@/modules/incident/incident.model";
 
 const severityVariant: Record<IncidentSeverity, "default" | "warning" | "danger" | "info"> = {
@@ -21,7 +21,7 @@ export function TicketCard({ ticket, className }: { ticket: IncidentWithNames; c
       <CardContent className="space-y-4 p-4">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <p className="text-xs font-semibold text-[color:var(--color-muted)]">{ticket.incidentId}</p>
+            <p className="text-xs font-semibold text-[color:var(--color-muted)]">{formatIncidentCode(ticket.incidentId)}</p>
             <h4 className="text-sm font-semibold text-[color:var(--color-foreground)]">
               {ticket.title}
             </h4>

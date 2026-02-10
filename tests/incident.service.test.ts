@@ -18,7 +18,8 @@ vi.mock("@/modules/incident/incident.repository", () => ({
 function makeIncident(overrides: Partial<IncidentWithNames> = {}): IncidentWithNames {
   return {
     id: "incident-1",
-    incidentId: "INC-1",
+    incidentId: 1,
+    teamId: 3,
     title: "Test Incident",
     description: "Test description",
     severity: "Medium",
@@ -47,7 +48,8 @@ describe("incident.service", () => {
   it("sets boardOrder when creating incidents", async () => {
     vi.mocked(createIncidentRepo).mockResolvedValue({
       id: "incident-1",
-      incidentId: "INC-1",
+      incidentId: 1,
+      teamId: 3,
       title: "Test",
       description: "Test",
       severity: "Low",
@@ -66,6 +68,7 @@ describe("incident.service", () => {
 
     await createIncident(
       {
+        teamId: 3,
         title: "Test",
         description: "Test",
         severity: "Low",
@@ -78,6 +81,7 @@ describe("incident.service", () => {
 
     expect(createIncidentRepo).toHaveBeenCalledWith(
       expect.objectContaining({
+        teamId: 3,
         boardOrder: expect.any(Number),
       })
     );

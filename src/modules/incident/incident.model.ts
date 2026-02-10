@@ -5,7 +5,8 @@ export type IncidentStatus = "Open" | "In Progress" | "Closed";
 
 export interface Incident {
   id: string;
-  incidentId: string;
+  incidentId: number;
+  teamId: number;
   title: string;
   description: string;
   severity: IncidentSeverity;
@@ -28,6 +29,7 @@ export interface IncidentWithNames extends Incident {
 }
 
 export interface CreateIncidentRepositoryInput {
+  teamId: number;
   title: string;
   description: string;
   severity: IncidentSeverity;
@@ -54,7 +56,8 @@ export interface UpdateIncidentRepositoryInput {
 
 const incidentSchema = new Schema(
   {
-    incident_id: { type: Schema.Types.ObjectId, default: () => new mongoose.Types.ObjectId() },
+    incident_id: { type: Number, required: true, unique: true, index: true },
+    team_id: { type: Number, required: true, index: true },
     title: { type: String, required: true, trim: true },
     description: { type: String, required: true, trim: true },
     severity: { type: String, required: true, enum: ["Low", "Medium", "High", "Critical"] },

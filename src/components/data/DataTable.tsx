@@ -8,7 +8,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { formatDisplayDate } from "@/lib/utils";
+import { formatDisplayDate, formatIncidentCode } from "@/lib/utils";
 import type { IncidentSeverity, IncidentStatus, IncidentWithNames } from "@/modules/incident/incident.model";
 
 const statusVariant: Record<IncidentStatus, "default" | "info" | "success"> = {
@@ -43,7 +43,7 @@ export function DataTable({ rows }: { rows: IncidentWithNames[] }) {
               <Link className="font-semibold text-[color:var(--color-foreground)]" href={`/tickets/${incident.id}`}>
                 {incident.title}
               </Link>
-              <p className="mt-1 text-xs text-[color:var(--color-muted)]">{incident.incidentId}</p>
+              <p className="mt-1 text-xs text-[color:var(--color-muted)]">{formatIncidentCode(incident.incidentId)}</p>
             </TableCell>
             <TableCell>
               <Badge variant={statusVariant[incident.status]}>{incident.status}</Badge>

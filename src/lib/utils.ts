@@ -32,3 +32,8 @@ export function formatDisplayDate(value: Date | string): string {
   const date = value instanceof Date ? value : new Date(value);
   return displayDateFormatter.format(date);
 }
+
+export function formatIncidentCode(incidentId: number): string {
+  const normalized = Number.isFinite(incidentId) ? Math.max(0, Math.trunc(incidentId)) : 0;
+  return `JIR-${String(normalized).padStart(3, "0")}`;
+}
