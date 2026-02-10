@@ -10,8 +10,27 @@ import type {
 import { IncidentModel } from "@/modules/incident/incident.model";
 import "@/modules/user/user.model";
 
+type IncidentRef = { toString(): string; name?: string } | null | undefined;
+type IncidentDocumentShape = {
+  _id: { toString(): string };
+  incident_id?: { toString(): string } | null;
+  title: string;
+  description: string;
+  severity: Incident["severity"];
+  status: Incident["status"];
+  board_order?: number;
+  created_by?: IncidentRef;
+  assigned_by?: IncidentRef;
+  assigned_to?: IncidentRef;
+  resolved_on?: Date | null;
+  closed_on?: Date | null;
+  comment?: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
 function mapIncident(doc: Record<string, unknown>): Incident {
-  const d = doc as Record<string, any>;
+  const d = doc as IncidentDocumentShape;
   return {
     id: d._id.toString(),
     incidentId: d.incident_id?.toString() ?? "",
@@ -19,6 +38,7 @@ function mapIncident(doc: Record<string, unknown>): Incident {
     description: d.description,
     severity: d.severity,
     status: d.status,
+    boardOrder: d.board_order ?? new Date(d.createdAt).getTime(),
     createdBy: d.created_by?.toString() ?? "",
     assignedBy: d.assigned_by?.toString() ?? "",
     assignedTo: d.assigned_to?.toString() ?? "",
@@ -31,7 +51,7 @@ function mapIncident(doc: Record<string, unknown>): Incident {
 }
 
 function mapIncidentWithNames(doc: Record<string, unknown>): IncidentWithNames {
-  const d = doc as Record<string, any>;
+  const d = doc as IncidentDocumentShape;
   const base = mapIncident(doc);
   return {
     ...base,
@@ -49,7 +69,7 @@ const USER_POPULATE = [
 
 export async function listIncidents(): Promise<IncidentWithNames[]> {
   await connectMongo();
-  const docs = await IncidentModel.find().populate(USER_POPULATE).sort({ createdAt: -1 });
+  const docs = await IncidentModel.find().populate(USER_POPULATE).sort({ board_order: 1, createdAt: 1 });
   return docs.map((d) => mapIncidentWithNames(d.toObject()));
 }
 
@@ -63,6 +83,7 @@ export async function createIncident(
     description: data.description,
     severity: data.severity,
     status: data.status,
+    board_order: data.boardOrder,
     created_by: new mongoose.Types.ObjectId(data.createdBy),
     assigned_by: new mongoose.Types.ObjectId(data.assignedBy),
     assigned_to: new mongoose.Types.ObjectId(data.assignedTo),
@@ -94,6 +115,7 @@ export async function updateIncidentById(
   if (updates.description !== undefined) mongoUpdates.description = updates.description;
   if (updates.severity !== undefined) mongoUpdates.severity = updates.severity;
   if (updates.status !== undefined) mongoUpdates.status = updates.status;
+  if (updates.boardOrder !== undefined) mongoUpdates.board_order = updates.boardOrder;
   if (updates.assignedBy !== undefined) mongoUpdates.assigned_by = new mongoose.Types.ObjectId(updates.assignedBy);
   if (updates.assignedTo !== undefined) mongoUpdates.assigned_to = new mongoose.Types.ObjectId(updates.assignedTo);
   if (updates.resolvedOn !== undefined) mongoUpdates.resolved_on = updates.resolvedOn;
