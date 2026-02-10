@@ -16,6 +16,12 @@ import {
 } from "@/modules/team/team.model";
 import "@/modules/user/user.model";
 
+type PopulatedUser = {
+  _id?: mongoose.Types.ObjectId | string;
+  name?: string;
+  email?: string;
+};
+
 function mapTeam(doc: TeamDocument, members: TeamMember[]): TeamWithMembers {
   return {
     id: doc._id.toString(),
@@ -30,7 +36,7 @@ function mapTeam(doc: TeamDocument, members: TeamMember[]): TeamWithMembers {
 }
 
 function mapMember(doc: UserTeamDocument): TeamMember {
-  const rawUser = doc.user_id as unknown as Record<string, any> | null;
+  const rawUser = doc.user_id as PopulatedUser | null;
   return {
     userId: rawUser?._id?.toString() ?? "",
     name: capitalizeName(rawUser?.name ?? "Unknown"),

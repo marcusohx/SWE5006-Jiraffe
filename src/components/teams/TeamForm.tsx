@@ -63,7 +63,7 @@ export function TeamForm({
   }, [initialMembers]);
 
   useEffect(() => {
-    if (initialName === undefined && initialDescription === undefined && initialMembers === undefined) {
+    if (initialName === undefined && initialDescription === undefined && initialMemberKey === null) {
       return;
     }
     setName(initialName ?? "");
@@ -72,7 +72,7 @@ export function TeamForm({
     if (initialIsActive !== undefined) {
       setIsActive(initialIsActive);
     }
-  }, [initialName, initialDescription, initialMemberKey, initialIsActive]);
+  }, [initialName, initialDescription, initialMembers, initialMemberKey, initialIsActive]);
 
   useEffect(() => {
     let isMounted = true;
