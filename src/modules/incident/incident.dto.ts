@@ -17,6 +17,7 @@ export const updateIncidentSchema = z.object({
   description: z.string().min(1).optional(),
   severity: z.enum(["Low", "Medium", "High", "Critical"]).optional(),
   status: z.enum(["Open", "In Progress", "Closed"]).optional(),
+  boardOrder: z.number().finite().optional(),
   assignedBy: z.string().min(1).optional(),
   assignedTo: z.string().min(1).optional(),
   resolvedOn: z.string().datetime().nullable().optional(),

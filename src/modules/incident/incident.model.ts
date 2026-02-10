@@ -10,6 +10,7 @@ export interface Incident {
   description: string;
   severity: IncidentSeverity;
   status: IncidentStatus;
+  boardOrder: number;
   createdBy: string;
   assignedBy: string;
   assignedTo: string;
@@ -31,6 +32,7 @@ export interface CreateIncidentRepositoryInput {
   description: string;
   severity: IncidentSeverity;
   status: IncidentStatus;
+  boardOrder: number;
   createdBy: string;
   assignedBy: string;
   assignedTo: string;
@@ -42,6 +44,7 @@ export interface UpdateIncidentRepositoryInput {
   description?: string;
   severity?: IncidentSeverity;
   status?: IncidentStatus;
+  boardOrder?: number;
   assignedBy?: string;
   assignedTo?: string;
   resolvedOn?: Date | null;
@@ -56,6 +59,7 @@ const incidentSchema = new Schema(
     description: { type: String, required: true, trim: true },
     severity: { type: String, required: true, enum: ["Low", "Medium", "High", "Critical"] },
     status: { type: String, required: true, enum: ["Open", "In Progress", "Closed"], default: "Open" },
+    board_order: { type: Number, required: true, default: () => Date.now() },
     created_by: { type: Schema.Types.ObjectId, ref: "User", required: true },
     assigned_by: { type: Schema.Types.ObjectId, ref: "User", required: true },
     assigned_to: { type: Schema.Types.ObjectId, ref: "User", required: true },

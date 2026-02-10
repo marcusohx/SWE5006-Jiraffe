@@ -1,5 +1,5 @@
 import type { CreateIncidentInput, UpdateIncidentInput } from "@/modules/incident/incident.dto";
-import type { IncidentWithNames } from "@/modules/incident/incident.model";
+import type { IncidentWithNames, UpdateIncidentRepositoryInput } from "@/modules/incident/incident.model";
 import {
   createIncident as createIncidentRepo,
   deleteIncidentById as deleteIncidentByIdRepo,
@@ -29,6 +29,7 @@ export async function createIncident(
     description: input.description,
     severity: input.severity,
     status: input.status ?? "Open",
+    boardOrder: Date.now(),
     createdBy: userId,
     assignedBy: input.assignedBy,
     assignedTo: input.assignedTo,
@@ -50,12 +51,31 @@ export async function updateIncidentById(
     throw new Error("No updates provided");
   }
 
-  const updates: Record<string, unknown> = { ...input };
+  const updates: UpdateIncidentInput = { ...input };
   if (input.status === "Closed" && !input.closedOn) {
     updates.closedOn = new Date().toISOString();
   }
+  if (input.status === "Open" || input.status === "In Progress") {
+    updates.closedOn = null;
+  }
 
-  const incident = await updateIncidentByIdRepo(id, updates as any);
+  const repositoryUpdates: UpdateIncidentRepositoryInput = {
+    ...updates,
+    resolvedOn:
+      updates.resolvedOn !== undefined
+        ? updates.resolvedOn === null
+          ? null
+          : new Date(updates.resolvedOn)
+        : undefined,
+    closedOn:
+      updates.closedOn !== undefined
+        ? updates.closedOn === null
+          ? null
+          : new Date(updates.closedOn)
+        : undefined,
+  };
+
+  const incident = await updateIncidentByIdRepo(id, repositoryUpdates);
   if (!incident) {
     throw new Error("Incident not found");
   }
