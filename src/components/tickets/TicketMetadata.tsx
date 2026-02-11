@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dropdown, DropdownItem } from "@/components/ui/dropdown";
@@ -10,6 +10,16 @@ import type { IncidentSeverity, IncidentStatus, IncidentWithNames } from "@/modu
 type ApiSuccess<T> = { success: true; data: T };
 type ApiError = { success: false; error: string };
 type UserOption = { id: string; name: string; email: string };
+type TeamOption = {
+  teamId: number;
+  name: string;
+  members: {
+    userId: string;
+    name: string;
+    email: string;
+    role: string;
+  }[];
+};
 
 const STATUS_OPTIONS: IncidentStatus[] = ["Open", "In Progress", "Closed"];
 const SEVERITY_OPTIONS: IncidentSeverity[] = ["Critical", "High", "Medium", "Low"];
@@ -37,7 +47,7 @@ export function TicketMetadata({ incident }: { incident: IncidentWithNames }) {
   const [closedOn, setClosedOn] = useState<string | null>(
     incident.closedOn ? new Date(incident.closedOn).toISOString() : null
   );
-  const [users, setUsers] = useState<UserOption[]>([]);
+  const [teams, setTeams] = useState<TeamOption[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [updatingField, setUpdatingField] = useState<"status" | "severity" | "assignedTo" | "assignedBy" | null>(
@@ -47,20 +57,20 @@ export function TicketMetadata({ incident }: { incident: IncidentWithNames }) {
   useEffect(() => {
     let isMounted = true;
 
-    const loadUsers = async () => {
+    const loadTeams = async () => {
       setLoadingUsers(true);
       try {
-        const response = await fetch("/api/users", { method: "GET" });
-        const payload = (await response.json()) as ApiSuccess<UserOption[]> | ApiError;
+        const response = await fetch("/api/teams", { method: "GET" });
+        const payload = (await response.json()) as ApiSuccess<TeamOption[]> | ApiError;
         if (!response.ok || !payload.success) {
-          throw new Error(payload.success ? "Unable to load users." : payload.error);
+          throw new Error(payload.success ? "Unable to load teams." : payload.error);
         }
         if (isMounted) {
-          setUsers(payload.data);
+          setTeams(payload.data);
         }
       } catch (e) {
         if (isMounted) {
-          setError(e instanceof Error ? e.message : "Unable to load users.");
+          setError(e instanceof Error ? e.message : "Unable to load teams.");
         }
       } finally {
         if (isMounted) {
@@ -69,12 +79,42 @@ export function TicketMetadata({ incident }: { incident: IncidentWithNames }) {
       }
     };
 
-    loadUsers();
+    loadTeams();
 
     return () => {
       isMounted = false;
     };
   }, []);
+
+  const users = useMemo(() => {
+    const teamId = incident.teamId;
+    if (!teamId) {
+      return [];
+    }
+
+    // Find the team that this incident belongs to
+    const team = teams.find((t) => t.teamId === teamId);
+    if (!team) {
+      return [];
+    }
+
+    // Extract unique users from team members
+    const uniqueUsers = new Map<string, UserOption>();
+    team.members.forEach((member) => {
+      if (!uniqueUsers.has(member.userId)) {
+        uniqueUsers.set(member.userId, {
+          id: member.userId,
+          name: member.name,
+          email: member.email,
+        });
+      }
+    });
+
+    // Return sorted array of users
+    return Array.from(uniqueUsers.values()).sort((a, b) =>
+      capitalizeName(a.name).localeCompare(capitalizeName(b.name))
+    );
+  }, [teams, incident.teamId]);
 
   const updateIncident = async (
     updates: Partial<{
