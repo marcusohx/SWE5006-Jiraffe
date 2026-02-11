@@ -25,6 +25,7 @@ export async function createIncident(
   userId: string
 ): Promise<IncidentWithNames> {
   const created = await createIncidentRepo({
+    teamId: input.teamId,
     title: input.title,
     description: input.description,
     severity: input.severity,

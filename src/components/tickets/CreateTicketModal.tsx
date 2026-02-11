@@ -10,6 +10,8 @@ export function CreateTicketModal() {
   const searchParams = useSearchParams();
 
   const open = searchParams.get("create") === "true";
+  const selectedTeamIdRaw = Number(searchParams.get("team"));
+  const selectedTeamId = Number.isInteger(selectedTeamIdRaw) ? selectedTeamIdRaw : null;
 
   const close = () => {
     const params = new URLSearchParams(searchParams.toString());
@@ -25,7 +27,7 @@ export function CreateTicketModal() {
 
   return (
     <Modal open={open} onClose={close} title="Create Ticket">
-      <CreateTicketForm onSuccess={onSuccess} />
+      <CreateTicketForm onSuccess={onSuccess} selectedTeamId={selectedTeamId} />
     </Modal>
   );
 }

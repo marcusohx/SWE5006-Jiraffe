@@ -19,9 +19,21 @@ type UserOption = {
   email: string;
 };
 
+type TeamOption = {
+  teamId: number;
+  name: string;
+  members: { userId: string; name: string; email: string; role: string }[];
+};
+
 const SEVERITY_OPTIONS: IncidentSeverity[] = ["Critical", "High", "Medium", "Low"];
 
-export function CreateTicketForm({ onSuccess }: { onSuccess: () => void }) {
+export function CreateTicketForm({
+  onSuccess,
+  selectedTeamId,
+}: {
+  onSuccess: () => void;
+  selectedTeamId: number | null;
+}) {
   const { data: session } = useSession();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -29,43 +41,76 @@ export function CreateTicketForm({ onSuccess }: { onSuccess: () => void }) {
   const [assignedTo, setAssignedTo] = useState<UserOption | null>(null);
   const [comment, setComment] = useState("");
 
-  const [users, setUsers] = useState<UserOption[]>([]);
-  const [loadingUsers, setLoadingUsers] = useState(true);
+  const [teams, setTeams] = useState<TeamOption[]>([]);
+  const [loadingTeams, setLoadingTeams] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let isMounted = true;
 
-    const loadUsers = async () => {
-      setLoadingUsers(true);
+    const loadTeams = async () => {
+      setLoadingTeams(true);
       try {
-        const response = await fetch("/api/users", { method: "GET" });
-        const payload = (await response.json()) as ApiSuccess<UserOption[]> | ApiError;
+        const response = await fetch("/api/teams", { method: "GET" });
+        const payload = (await response.json()) as ApiSuccess<TeamOption[]> | ApiError;
         if (!response.ok || !payload.success) {
-          throw new Error(payload.success ? "Unable to load users." : payload.error);
+          throw new Error(payload.success ? "Unable to load teams." : payload.error);
         }
 
         if (isMounted) {
-          setUsers(payload.data);
+          setTeams(payload.data);
         }
       } catch (e) {
         if (isMounted) {
-          setError(e instanceof Error ? e.message : "Unable to load users.");
+          setError(e instanceof Error ? e.message : "Unable to load teams.");
         }
       } finally {
         if (isMounted) {
-          setLoadingUsers(false);
+          setLoadingTeams(false);
         }
       }
     };
 
-    loadUsers();
+    loadTeams();
 
     return () => {
       isMounted = false;
     };
   }, []);
+
+  const users = useMemo(() => {
+    if (selectedTeamId === null) {
+      return [];
+    }
+    const team = teams.find((item) => item.teamId === selectedTeamId);
+    if (!team) {
+      return [];
+    }
+
+    const uniqueUsers = new Map<string, UserOption>();
+    team.members.forEach((member) => {
+      if (!uniqueUsers.has(member.userId)) {
+        uniqueUsers.set(member.userId, {
+          id: member.userId,
+          name: member.name,
+          email: member.email,
+        });
+      }
+    });
+    return Array.from(uniqueUsers.values()).sort((a, b) =>
+      capitalizeName(a.name).localeCompare(capitalizeName(b.name))
+    );
+  }, [teams, selectedTeamId]);
+
+  useEffect(() => {
+    if (!assignedTo) {
+      return;
+    }
+    if (!users.some((user) => user.id === assignedTo.id)) {
+      setAssignedTo(null);
+    }
+  }, [users, assignedTo]);
 
   const canSubmit = useMemo(() => {
     return Boolean(
@@ -73,10 +118,11 @@ export function CreateTicketForm({ onSuccess }: { onSuccess: () => void }) {
         description.trim() &&
         severity &&
         assignedTo?.id &&
+        selectedTeamId !== null &&
         session?.user?.id &&
         !isSubmitting
     );
-  }, [title, description, severity, assignedTo, session?.user?.id, isSubmitting]);
+  }, [title, description, severity, assignedTo, selectedTeamId, session?.user?.id, isSubmitting]);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -92,6 +138,7 @@ export function CreateTicketForm({ onSuccess }: { onSuccess: () => void }) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          teamId: selectedTeamId,
           title: title.trim(),
           description: description.trim(),
           severity,
@@ -173,8 +220,12 @@ export function CreateTicketForm({ onSuccess }: { onSuccess: () => void }) {
                 </div>
               }
             >
-              {loadingUsers ? (
-                <DropdownItem disabled>Loading users...</DropdownItem>
+              {selectedTeamId === null ? (
+                <DropdownItem disabled>Select a team from Ticket Pipeline first</DropdownItem>
+              ) : loadingTeams ? (
+                <DropdownItem disabled>Loading team members...</DropdownItem>
+              ) : users.length === 0 ? (
+                <DropdownItem disabled>No members found in this team</DropdownItem>
               ) : (
                 users.map((user) => (
                   <DropdownItem

@@ -3,6 +3,7 @@
 import { Loader2, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
+import { formatIncidentCode } from "@/lib/utils";
 import type { IncidentWithNames } from "@/modules/incident/incident.model";
 
 export function DeleteIncidentConfirmModal({
@@ -28,7 +29,7 @@ export function DeleteIncidentConfirmModal({
           action cannot be undone.
         </p>
         {incident ? (
-          <p className="text-xs text-[color:var(--color-muted)]">Ticket ID: {incident.incidentId}</p>
+          <p className="text-xs text-[color:var(--color-muted)]">Ticket ID: {formatIncidentCode(incident.incidentId)}</p>
         ) : null}
         {error ? <p className="text-sm text-red-600">{error}</p> : null}
         <div className="flex justify-end gap-2">
