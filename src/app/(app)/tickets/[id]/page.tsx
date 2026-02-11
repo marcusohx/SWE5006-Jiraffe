@@ -9,8 +9,30 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatDisplayDate } from "@/lib/utils";
 import { getIncidentById } from "@/modules/incident/incident.service";
 
-export default async function TicketDetailPage({ params }: { params: Promise<{ id: string }> }) {
+function resolveBackHref(returnTo: string | string[] | undefined): string {
+  const value = Array.isArray(returnTo) ? returnTo[0] : returnTo;
+  if (!value) {
+    return "/tickets";
+  }
+
+  // Only allow internal relative paths.
+  if (value.startsWith("/") && !value.startsWith("//")) {
+    return value;
+  }
+
+  return "/tickets";
+}
+
+export default async function TicketDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ returnTo?: string | string[] }>;
+}) {
   const { id } = await params;
+  const { returnTo } = await searchParams;
+  const backHref = resolveBackHref(returnTo);
   let incident;
   try {
     incident = await getIncidentById(id);
@@ -22,7 +44,7 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ i
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <Link href="/tickets" className="text-[color:var(--color-muted)]">
+          <Link href={backHref} className="text-[color:var(--color-muted)]">
             <ArrowLeft className="h-4 w-4" />
           </Link>
           <div>
