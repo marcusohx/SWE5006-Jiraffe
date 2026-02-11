@@ -6,6 +6,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { IncidentBoard } from "@/components/board/IncidentBoard";
 import { Dropdown, DropdownItem } from "@/components/ui/dropdown";
 import { Badge } from "@/components/ui/badge";
+import { getLastSelectedTeamId, saveSelectedTeamId } from "@/lib/team-persistence";
 import type { IncidentWithNames } from "@/modules/incident/incident.model";
 
 export type TeamOption = {
@@ -25,11 +26,20 @@ export function TeamScopedIncidentBoard({
   const searchParams = useSearchParams();
 
   const selectedTeamId = useMemo(() => {
+    // Priority 1: URL query parameter
     const queryTeam = searchParams.get("team");
     const parsedTeamId = queryTeam ? Number.parseInt(queryTeam, 10) : Number.NaN;
     if (Number.isInteger(parsedTeamId) && teamOptions.some((team) => team.teamId === parsedTeamId)) {
       return parsedTeamId;
     }
+
+    // Priority 2: Last selected team from localStorage
+    const lastSelectedTeamId = getLastSelectedTeamId();
+    if (lastSelectedTeamId !== null && teamOptions.some((team) => team.teamId === lastSelectedTeamId)) {
+      return lastSelectedTeamId;
+    }
+
+    // Priority 3: First team as fallback
     return teamOptions[0]?.teamId ?? null;
   }, [teamOptions, searchParams]);
 
@@ -46,6 +56,12 @@ export function TeamScopedIncidentBoard({
     const query = params.toString();
     router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
   }, [selectedTeamId, searchParams, router, pathname]);
+
+  useEffect(() => {
+    if (selectedTeamId !== null) {
+      saveSelectedTeamId(selectedTeamId);
+    }
+  }, [selectedTeamId]);
 
   const onSelectTeam = (teamId: number) => {
     const params = new URLSearchParams(searchParams.toString());

@@ -8,6 +8,7 @@ import { DeleteIncidentConfirmModal } from "@/components/tickets/DeleteIncidentC
 import { TicketsTableControls } from "@/components/tickets/TicketsTableControls";
 import { Dropdown, DropdownItem } from "@/components/ui/dropdown";
 import { Badge } from "@/components/ui/badge";
+import { getLastSelectedTeamId, saveSelectedTeamId } from "@/lib/team-persistence";
 import { formatIncidentCode } from "@/lib/utils";
 import type { IncidentSeverity, IncidentStatus, IncidentWithNames } from "@/modules/incident/incident.model";
 
@@ -64,11 +65,20 @@ export function TicketsTableSection({
   }, [initialRows]);
 
   const selectedTeamId = useMemo(() => {
+    // Priority 1: URL query parameter
     const queryTeam = searchParams.get("team");
     const parsedTeamId = queryTeam ? Number.parseInt(queryTeam, 10) : Number.NaN;
     if (Number.isInteger(parsedTeamId) && teamOptions.some((team) => team.teamId === parsedTeamId)) {
       return parsedTeamId;
     }
+
+    // Priority 2: Last selected team from localStorage
+    const lastSelectedTeamId = getLastSelectedTeamId();
+    if (lastSelectedTeamId !== null && teamOptions.some((team) => team.teamId === lastSelectedTeamId)) {
+      return lastSelectedTeamId;
+    }
+
+    // Priority 3: First team as fallback
     return teamOptions[0]?.teamId ?? null;
   }, [teamOptions, searchParams]);
 
@@ -85,6 +95,12 @@ export function TicketsTableSection({
     const query = params.toString();
     router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
   }, [selectedTeamId, searchParams, router, pathname]);
+
+  useEffect(() => {
+    if (selectedTeamId !== null) {
+      saveSelectedTeamId(selectedTeamId);
+    }
+  }, [selectedTeamId]);
 
   const onSelectTeam = (teamId: number) => {
     const params = new URLSearchParams(searchParams.toString());
