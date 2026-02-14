@@ -1,7 +1,7 @@
 "use client";
 
 import { Building2, Check, ChevronDown } from "lucide-react";
-import { useEffect, useMemo } from "react";
+import { Suspense, useEffect, useMemo } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { IncidentBoard } from "@/components/board/IncidentBoard";
 import { Dropdown, DropdownItem } from "@/components/ui/dropdown";
@@ -15,6 +15,20 @@ export type TeamOption = {
 };
 
 export function TeamScopedIncidentBoard({
+  incidents,
+  teamOptions,
+}: {
+  incidents: IncidentWithNames[];
+  teamOptions: TeamOption[];
+}) {
+  return (
+    <Suspense fallback={null}>
+      <TeamScopedIncidentBoardContent incidents={incidents} teamOptions={teamOptions} />
+    </Suspense>
+  );
+}
+
+function TeamScopedIncidentBoardContent({
   incidents,
   teamOptions,
 }: {

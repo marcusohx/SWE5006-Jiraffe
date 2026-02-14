@@ -1,4 +1,5 @@
 import { getServerSession } from "next-auth";
+import { Suspense } from "react";
 import { TeamScopedIncidentBoard } from "@/components/board/TeamScopedIncidentBoard";
 import { authOptions } from "@/modules/auth/auth.options";
 import { listIncidents } from "@/modules/incident/incident.service";
@@ -37,7 +38,9 @@ export default async function BoardPage() {
         </p>
       </div>
 
-      <TeamScopedIncidentBoard incidents={scopedIncidents} teamOptions={teamOptions} />
+      <Suspense fallback={null}>
+        <TeamScopedIncidentBoard incidents={scopedIncidents} teamOptions={teamOptions} />
+      </Suspense>
     </div>
   );
 }

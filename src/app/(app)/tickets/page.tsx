@@ -1,4 +1,5 @@
 import { getServerSession } from "next-auth";
+import { Suspense } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CreateTicketButton } from "@/components/tickets/CreateTicketButton";
 import { TicketsTableSection, type TeamScopeOption } from "@/components/tickets/TicketsTableSection";
@@ -31,7 +32,9 @@ export default async function TicketsPage() {
           <p className="text-sm uppercase tracking-[0.2em] text-[color:var(--color-muted)]">Tickets</p>
           <h1 className="mt-2 text-3xl font-semibold">All Tickets</h1>
         </div>
-        <CreateTicketButton label="Create Ticket" />
+        <Suspense fallback={null}>
+          <CreateTicketButton label="Create Ticket" />
+        </Suspense>
       </section>
 
       <Card>
@@ -39,7 +42,9 @@ export default async function TicketsPage() {
           <CardTitle>Ticket Pipeline</CardTitle>
         </CardHeader>
         <CardContent className="pt-5">
-          <TicketsTableSection initialRows={scopedIncidents} teamOptions={teamScopeOptions} />
+          <Suspense fallback={null}>
+            <TicketsTableSection initialRows={scopedIncidents} teamOptions={teamScopeOptions} />
+          </Suspense>
         </CardContent>
       </Card>
     </div>
