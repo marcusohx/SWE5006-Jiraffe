@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { createIncident, updateIncidentById } from "@/modules/incident/incident.repository";
+import { createIncident, deleteIncidentById, findIncidentById, updateIncidentById } from "@/modules/incident/incident.repository";
 
 const {
   connectMongo,
@@ -12,6 +12,7 @@ const {
   incidentCreate,
   incidentFindById,
   incidentFindByIdAndUpdate,
+  incidentDeleteOne,
 } = vi.hoisted(() => ({
   connectMongo: vi.fn(),
   startSession: vi.fn(),
@@ -23,6 +24,7 @@ const {
   incidentCreate: vi.fn(),
   incidentFindById: vi.fn(),
   incidentFindByIdAndUpdate: vi.fn(),
+  incidentDeleteOne: vi.fn(),
 }));
 
 vi.mock("@/lib/db/mongodb", () => ({
@@ -44,6 +46,7 @@ vi.mock("@/modules/incident/incident.model", () => ({
     create: incidentCreate,
     findById: incidentFindById,
     findByIdAndUpdate: incidentFindByIdAndUpdate,
+    deleteOne: incidentDeleteOne,
   },
 }));
 
@@ -255,5 +258,80 @@ describe("incident.repository team scope", () => {
 
     expect(updated?.teamId).toBe(2);
     expect(updated?.assignedTo).toBe("u-assignee");
+  });
+
+  it("returns null for invalid ObjectId in updateIncidentById", async () => {
+    const result = await updateIncidentById("not-a-valid-id", { title: "New Title" });
+    expect(result).toBeNull();
+    expect(incidentFindById).not.toHaveBeenCalled();
+  });
+
+  it("returns null when incident does not exist in updateIncidentById", async () => {
+    incidentFindById.mockReturnValue({
+      select: vi.fn().mockResolvedValue(null),
+    });
+
+    const result = await updateIncidentById("67dc66fd6f57fd4fce4d8548", { title: "New Title" });
+    expect(result).toBeNull();
+  });
+});
+
+describe("incident.repository — findIncidentById", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    connectMongo.mockResolvedValue({ startSession });
+  });
+
+  it("returns null for invalid ObjectId", async () => {
+    const result = await findIncidentById("not-a-valid-id");
+    expect(result).toBeNull();
+    expect(incidentFindById).not.toHaveBeenCalled();
+  });
+
+  it("returns null when incident does not exist", async () => {
+    incidentFindById.mockReturnValue({
+      populate: vi.fn().mockResolvedValue(null),
+    });
+
+    const result = await findIncidentById("67dc66fd6f57fd4fce4d8548");
+    expect(result).toBeNull();
+  });
+
+  it("returns mapped incident with names when found", async () => {
+    incidentFindById.mockReturnValue({
+      populate: vi.fn().mockResolvedValue(makeUpdatedDoc()),
+    });
+
+    const result = await findIncidentById("67dc66fd6f57fd4fce4d8548");
+    expect(result).not.toBeNull();
+    expect(result?.teamId).toBe(2);
+    expect(result?.createdByName).toBe("Creator");
+  });
+});
+
+describe("incident.repository — deleteIncidentById", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    connectMongo.mockResolvedValue({ startSession });
+  });
+
+  it("returns false for invalid ObjectId", async () => {
+    const result = await deleteIncidentById("not-a-valid-id");
+    expect(result).toBe(false);
+    expect(incidentDeleteOne).not.toHaveBeenCalled();
+  });
+
+  it("returns false when incident does not exist", async () => {
+    incidentDeleteOne.mockResolvedValue({ deletedCount: 0 });
+
+    const result = await deleteIncidentById("67dc66fd6f57fd4fce4d8548");
+    expect(result).toBe(false);
+  });
+
+  it("returns true when incident is deleted", async () => {
+    incidentDeleteOne.mockResolvedValue({ deletedCount: 1 });
+
+    const result = await deleteIncidentById("67dc66fd6f57fd4fce4d8548");
+    expect(result).toBe(true);
   });
 });

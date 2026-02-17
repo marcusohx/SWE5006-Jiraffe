@@ -1,9 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { IncidentWithNames } from "@/modules/incident/incident.model";
-import { createIncident, updateIncidentById } from "@/modules/incident/incident.service";
+import {
+  createIncident,
+  deleteIncidentById,
+  getIncidentById,
+  listIncidents,
+  updateIncidentById,
+} from "@/modules/incident/incident.service";
 import {
   createIncident as createIncidentRepo,
+  deleteIncidentById as deleteIncidentByIdRepo,
   findIncidentById,
+  listIncidents as listIncidentsRepo,
   updateIncidentById as updateIncidentByIdRepo,
 } from "@/modules/incident/incident.repository";
 
@@ -122,5 +130,113 @@ describe("incident.service", () => {
 
     expect(updateIncidentByIdRepo).toHaveBeenCalledWith("incident-1", expect.not.objectContaining({ closedOn: null }));
     expect(updateIncidentByIdRepo).toHaveBeenCalledWith("incident-1", expect.not.objectContaining({ closedOn: expect.any(Date) }));
+  });
+
+  it("clears closedOn when status changes to In Progress", async () => {
+    vi.mocked(updateIncidentByIdRepo).mockResolvedValue(makeIncident({ status: "In Progress", closedOn: null }));
+
+    await updateIncidentById("incident-1", { status: "In Progress" });
+
+    expect(updateIncidentByIdRepo).toHaveBeenCalledWith(
+      "incident-1",
+      expect.objectContaining({ status: "In Progress", closedOn: null })
+    );
+  });
+
+  it("throws when no updates provided", async () => {
+    await expect(updateIncidentById("incident-1", {})).rejects.toThrow("No updates provided");
+  });
+
+  it("throws when incident not found", async () => {
+    vi.mocked(updateIncidentByIdRepo).mockResolvedValue(null);
+
+    await expect(updateIncidentById("incident-1", { severity: "High" })).rejects.toThrow("Incident not found");
+  });
+});
+
+describe("incident.service — listIncidents", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("returns list of incidents from repository", async () => {
+    const incidents = [makeIncident(), makeIncident({ id: "incident-2", incidentId: 2 })];
+    vi.mocked(listIncidentsRepo).mockResolvedValue(incidents);
+
+    const result = await listIncidents();
+
+    expect(result).toEqual(incidents);
+    expect(listIncidentsRepo).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("incident.service — getIncidentById", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("returns incident when found", async () => {
+    const incident = makeIncident();
+    vi.mocked(findIncidentById).mockResolvedValue(incident);
+
+    const result = await getIncidentById("incident-1");
+
+    expect(result).toEqual(incident);
+  });
+
+  it("throws when incident not found", async () => {
+    vi.mocked(findIncidentById).mockResolvedValue(null);
+
+    await expect(getIncidentById("nonexistent-id")).rejects.toThrow("Incident not found");
+  });
+});
+
+describe("incident.service — deleteIncidentById", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("resolves when incident is deleted", async () => {
+    vi.mocked(deleteIncidentByIdRepo).mockResolvedValue(true);
+
+    await expect(deleteIncidentById("incident-1")).resolves.toBeUndefined();
+  });
+
+  it("throws when incident not found", async () => {
+    vi.mocked(deleteIncidentByIdRepo).mockResolvedValue(false);
+
+    await expect(deleteIncidentById("nonexistent-id")).rejects.toThrow("Incident not found");
+  });
+});
+
+describe("incident.service — createIncident failure path", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("throws when populated incident cannot be fetched after creation", async () => {
+    vi.mocked(createIncidentRepo).mockResolvedValue({
+      id: "incident-1",
+      incidentId: 1,
+      teamId: 3,
+      title: "Test",
+      description: "Test",
+      severity: "Low",
+      status: "Open",
+      boardOrder: 1000,
+      createdBy: "u1",
+      assignedBy: "u2",
+      assignedTo: "u3",
+      resolvedOn: null,
+      closedOn: null,
+      comment: null,
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+    });
+    vi.mocked(findIncidentById).mockResolvedValue(null);
+
+    await expect(
+      createIncident({ teamId: 3, title: "Test", description: "Test", severity: "Low", assignedBy: "u2", assignedTo: "u3" }, "u1")
+    ).rejects.toThrow("Failed to create incident");
   });
 });
