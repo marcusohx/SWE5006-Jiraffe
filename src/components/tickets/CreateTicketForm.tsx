@@ -7,25 +7,11 @@ import { Button } from "@/components/ui/button";
 import { Dropdown, DropdownItem } from "@/components/ui/dropdown";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { SEVERITY_OPTIONS } from "@/lib/constants";
 import { capitalizeName } from "@/lib/utils";
 import type { IncidentSeverity } from "@/modules/incident/incident.model";
-
-type ApiSuccess<T> = { success: true; data: T };
-type ApiError = { success: false; error: string };
-
-type UserOption = {
-  id: string;
-  name: string;
-  email: string;
-};
-
-type TeamOption = {
-  teamId: number;
-  name: string;
-  members: { userId: string; name: string; email: string; role: string }[];
-};
-
-const SEVERITY_OPTIONS: IncidentSeverity[] = ["Critical", "High", "Medium", "Low"];
+import type { ApiError, ApiSuccess } from "@/types/api";
+import type { TeamOptionWithMembers, UserOption } from "@/types/domain";
 
 export function CreateTicketForm({
   onSuccess,
@@ -41,7 +27,7 @@ export function CreateTicketForm({
   const [assignedTo, setAssignedTo] = useState<UserOption | null>(null);
   const [comment, setComment] = useState("");
 
-  const [teams, setTeams] = useState<TeamOption[]>([]);
+  const [teams, setTeams] = useState<TeamOptionWithMembers[]>([]);
   const [loadingTeams, setLoadingTeams] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -53,7 +39,7 @@ export function CreateTicketForm({
       setLoadingTeams(true);
       try {
         const response = await fetch("/api/teams", { method: "GET" });
-        const payload = (await response.json()) as ApiSuccess<TeamOption[]> | ApiError;
+        const payload = (await response.json()) as ApiSuccess<TeamOptionWithMembers[]> | ApiError;
         if (!response.ok || !payload.success) {
           throw new Error(payload.success ? "Unable to load teams." : payload.error);
         }
@@ -164,7 +150,7 @@ export function CreateTicketForm({
 
   return (
     <form className="space-y-4" onSubmit={handleSubmit}>
-      <label className="block text-xs uppercase text-[color:var(--color-muted)]">
+      <label className="block text-xs uppercase text-muted">
         Title
         <Input
           className="mt-2"
@@ -175,7 +161,7 @@ export function CreateTicketForm({
         />
       </label>
 
-      <label className="block text-xs uppercase text-[color:var(--color-muted)]">
+      <label className="block text-xs uppercase text-muted">
         Description
         <Textarea
           className="mt-2"
@@ -188,11 +174,11 @@ export function CreateTicketForm({
 
       <div className="grid gap-4 md:grid-cols-2">
         <div>
-          <p className="text-xs uppercase text-[color:var(--color-muted)]">Severity</p>
+          <p className="text-xs uppercase text-muted">Severity</p>
           <div className="mt-2">
             <Dropdown
               trigger={
-                <div className="flex h-11 min-w-[180px] items-center rounded-xl border border-[color:var(--color-border)] bg-white px-4 text-sm text-[color:var(--color-foreground)] shadow-[0_12px_30px_-25px_rgba(15,23,42,0.6)]">
+                <div className="flex h-11 min-w-[180px] items-center rounded-xl border border-border bg-white px-4 text-sm text-foreground shadow-[0_12px_30px_-25px_rgba(15,23,42,0.6)]">
                   {severity ?? "Select severity"}
                 </div>
               }
@@ -211,11 +197,11 @@ export function CreateTicketForm({
         </div>
 
         <div>
-          <p className="text-xs uppercase text-[color:var(--color-muted)]">Assign To</p>
+          <p className="text-xs uppercase text-muted">Assign To</p>
           <div className="mt-2">
             <Dropdown
               trigger={
-                <div className="flex h-11 min-w-[220px] items-center rounded-xl border border-[color:var(--color-border)] bg-white px-4 text-sm text-[color:var(--color-foreground)] shadow-[0_12px_30px_-25px_rgba(15,23,42,0.6)]">
+                <div className="flex h-11 min-w-[220px] items-center rounded-xl border border-border bg-white px-4 text-sm text-foreground shadow-[0_12px_30px_-25px_rgba(15,23,42,0.6)]">
                   {assignedTo ? capitalizeName(assignedTo.name) : "Select assignee"}
                 </div>
               }
@@ -242,7 +228,7 @@ export function CreateTicketForm({
         </div>
       </div>
 
-      <label className="block text-xs uppercase text-[color:var(--color-muted)]">
+      <label className="block text-xs uppercase text-muted">
         Comment (Optional)
         <Textarea
           className="mt-2 min-h-[90px]"

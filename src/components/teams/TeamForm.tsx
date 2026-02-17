@@ -8,10 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { capitalizeName } from "@/lib/utils";
-
-type ApiSuccess<T> = { success: true; data: T };
-
-type ApiError = { success: false; error: string };
+import type { ApiError, ApiSuccess } from "@/types/api";
 
 type UserOption = {
   id: string;
@@ -143,7 +140,7 @@ export function TeamForm({
 
   return (
     <form className="space-y-4" onSubmit={handleSubmit}>
-      <label className="block text-xs uppercase text-[color:var(--color-muted)]">
+      <label className="block text-xs uppercase text-muted">
         Team Name
         <Input
           className="mt-2"
@@ -154,7 +151,7 @@ export function TeamForm({
         />
       </label>
 
-      <label className="block text-xs uppercase text-[color:var(--color-muted)]">
+      <label className="block text-xs uppercase text-muted">
         Description
         <Textarea
           className="mt-2"
@@ -164,9 +161,9 @@ export function TeamForm({
         />
       </label>
 
-      <div className="flex items-center justify-between rounded-xl border border-[color:var(--color-border)] bg-white px-4 py-3">
+      <div className="flex items-center justify-between rounded-xl border border-border bg-white px-4 py-3">
         <div>
-          <p className="text-xs uppercase text-[color:var(--color-muted)]">Status</p>
+          <p className="text-xs uppercase text-muted">Status</p>
           <p className="text-sm font-medium">{isActive ? "Active" : "Inactive"}</p>
         </div>
         <Switch checked={isActive} onCheckedChange={setIsActive} />
@@ -174,20 +171,20 @@ export function TeamForm({
 
       <div>
         <div className="flex items-center justify-between">
-          <p className="text-xs uppercase text-[color:var(--color-muted)]">Team Members</p>
+          <p className="text-xs uppercase text-muted">Team Members</p>
           {showAutoIdNotice ? (
-            <p className="text-xs text-[color:var(--color-muted)]">Team ID is auto-generated</p>
+            <p className="text-xs text-muted">Team ID is auto-generated</p>
           ) : null}
         </div>
 
         <div className="mt-2 flex flex-wrap gap-2">
           {selectedUsers.length === 0 ? (
-            <span className="text-sm text-[color:var(--color-muted)]">No members selected</span>
+            <span className="text-sm text-muted">No members selected</span>
           ) : null}
           {selectedUsers.map((user) => (
             <span
               key={user.id}
-              className="inline-flex items-center gap-2 rounded-full border border-[color:var(--color-border)] bg-white px-3 py-1 text-xs"
+              className="inline-flex items-center gap-2 rounded-full border border-border bg-white px-3 py-1 text-xs"
             >
               {capitalizeName(user.name)}
               <button
@@ -195,7 +192,7 @@ export function TeamForm({
                 onClick={() =>
                   setSelectedUsers((prev) => prev.filter((item) => item.id !== user.id))
                 }
-                className="rounded-full p-1 text-[color:var(--color-muted)] hover:bg-[color:var(--color-surface-muted)]"
+                className="rounded-full p-1 text-muted hover:bg-surface-muted"
                 aria-label={`Remove ${user.name}`}
               >
                 <X className="h-3 w-3" />
@@ -207,7 +204,7 @@ export function TeamForm({
         <div className="mt-3">
           <Dropdown
             trigger={
-              <div className="flex h-11 min-w-[220px] items-center rounded-xl border border-[color:var(--color-border)] bg-white px-4 text-sm text-[color:var(--color-foreground)] shadow-[0_12px_30px_-25px_rgba(15,23,42,0.6)]">
+              <div className="flex h-11 min-w-[220px] items-center rounded-xl border border-border bg-white px-4 text-sm text-foreground shadow-[0_12px_30px_-25px_rgba(15,23,42,0.6)]">
                 {availableUsers.length ? "Add member" : "No more users"}
               </div>
             }

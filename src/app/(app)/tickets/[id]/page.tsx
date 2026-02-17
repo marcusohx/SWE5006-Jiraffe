@@ -44,11 +44,11 @@ export default async function TicketDetailPage({
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <Link href={backHref} className="text-[color:var(--color-muted)]">
+          <Link href={backHref} className="text-muted">
             <ArrowLeft className="h-4 w-4" />
           </Link>
           <div>
-            <p className="text-sm text-[color:var(--color-muted)]">Ticket Details</p>
+            <p className="text-sm text-muted">Ticket Details</p>
             <h1 className="text-3xl font-semibold">{incident.title}</h1>
           </div>
         </div>
@@ -66,7 +66,7 @@ export default async function TicketDetailPage({
               initialTitle={incident.title}
               initialDescription={incident.description}
             />
-            <div className="grid gap-2 text-sm text-[color:var(--color-muted)]">
+            <div className="grid gap-2 text-sm text-muted">
               <div className="flex items-center gap-2">
                 <Calendar className="h-4 w-4" />
                 Updated {formatDisplayDate(incident.updatedAt)}

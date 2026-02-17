@@ -4,38 +4,11 @@ import { useEffect, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dropdown, DropdownItem } from "@/components/ui/dropdown";
+import { SEVERITY_OPTIONS, STATUS_OPTIONS, severityVariant, statusVariant } from "@/lib/constants";
 import { capitalizeName, formatDisplayDate } from "@/lib/utils";
 import type { IncidentSeverity, IncidentStatus, IncidentWithNames } from "@/modules/incident/incident.model";
-
-type ApiSuccess<T> = { success: true; data: T };
-type ApiError = { success: false; error: string };
-type UserOption = { id: string; name: string; email: string };
-type TeamOption = {
-  teamId: number;
-  name: string;
-  members: {
-    userId: string;
-    name: string;
-    email: string;
-    role: string;
-  }[];
-};
-
-const STATUS_OPTIONS: IncidentStatus[] = ["Open", "In Progress", "Closed"];
-const SEVERITY_OPTIONS: IncidentSeverity[] = ["Critical", "High", "Medium", "Low"];
-
-const statusVariant: Record<IncidentStatus, "default" | "info" | "success"> = {
-  Open: "default",
-  "In Progress": "info",
-  Closed: "success",
-};
-
-const severityVariant: Record<IncidentSeverity, "default" | "info" | "warning" | "danger"> = {
-  Low: "default",
-  Medium: "info",
-  High: "warning",
-  Critical: "danger",
-};
+import type { ApiError, ApiSuccess } from "@/types/api";
+import type { TeamOptionWithMembers, UserOption } from "@/types/domain";
 
 export function TicketMetadata({ incident }: { incident: IncidentWithNames }) {
   const [status, setStatus] = useState<IncidentStatus>(incident.status);
@@ -47,7 +20,7 @@ export function TicketMetadata({ incident }: { incident: IncidentWithNames }) {
   const [closedOn, setClosedOn] = useState<string | null>(
     incident.closedOn ? new Date(incident.closedOn).toISOString() : null
   );
-  const [teams, setTeams] = useState<TeamOption[]>([]);
+  const [teams, setTeams] = useState<TeamOptionWithMembers[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [updatingField, setUpdatingField] = useState<"status" | "severity" | "assignedTo" | "assignedBy" | null>(
@@ -61,7 +34,7 @@ export function TicketMetadata({ incident }: { incident: IncidentWithNames }) {
       setLoadingUsers(true);
       try {
         const response = await fetch("/api/teams", { method: "GET" });
-        const payload = (await response.json()) as ApiSuccess<TeamOption[]> | ApiError;
+        const payload = (await response.json()) as ApiSuccess<TeamOptionWithMembers[]> | ApiError;
         if (!response.ok || !payload.success) {
           throw new Error(payload.success ? "Unable to load teams." : payload.error);
         }
@@ -250,7 +223,7 @@ export function TicketMetadata({ incident }: { incident: IncidentWithNames }) {
       </CardHeader>
       <CardContent className="space-y-4">
         <div>
-          <p className="text-xs uppercase text-[color:var(--color-muted)]">Status</p>
+          <p className="text-xs uppercase text-muted">Status</p>
           <Dropdown trigger={<Badge variant={statusVariant[status]}>{status}</Badge>}>
             {STATUS_OPTIONS.map((option) => (
               <DropdownItem
@@ -266,7 +239,7 @@ export function TicketMetadata({ incident }: { incident: IncidentWithNames }) {
         </div>
 
         <div>
-          <p className="text-xs uppercase text-[color:var(--color-muted)]">Severity</p>
+          <p className="text-xs uppercase text-muted">Severity</p>
           <Dropdown trigger={<Badge variant={severityVariant[severity]}>{severity}</Badge>}>
             {SEVERITY_OPTIONS.map((option) => (
               <DropdownItem
@@ -282,10 +255,10 @@ export function TicketMetadata({ incident }: { incident: IncidentWithNames }) {
         </div>
 
         <div>
-          <p className="text-xs uppercase text-[color:var(--color-muted)]">Assignee</p>
+          <p className="text-xs uppercase text-muted">Assignee</p>
           <Dropdown
             trigger={
-              <div className="flex h-9 min-w-[180px] items-center rounded-xl border border-[color:var(--color-border)] bg-white px-3 text-sm font-medium text-[color:var(--color-foreground)]">
+              <div className="flex h-9 min-w-[180px] items-center rounded-xl border border-border bg-white px-3 text-sm font-medium text-foreground">
                 {assignedToName}
               </div>
             }
@@ -307,10 +280,10 @@ export function TicketMetadata({ incident }: { incident: IncidentWithNames }) {
           </Dropdown>
         </div>
         <div>
-          <p className="text-xs uppercase text-[color:var(--color-muted)]">Assigned By</p>
+          <p className="text-xs uppercase text-muted">Assigned By</p>
           <Dropdown
             trigger={
-              <div className="flex h-9 min-w-[180px] items-center rounded-xl border border-[color:var(--color-border)] bg-white px-3 text-sm font-medium text-[color:var(--color-foreground)]">
+              <div className="flex h-9 min-w-[180px] items-center rounded-xl border border-border bg-white px-3 text-sm font-medium text-foreground">
                 {assignedByName}
               </div>
             }
@@ -333,7 +306,7 @@ export function TicketMetadata({ incident }: { incident: IncidentWithNames }) {
         </div>
         {closedOn ? (
           <div>
-            <p className="text-xs uppercase text-[color:var(--color-muted)]">Closed On</p>
+            <p className="text-xs uppercase text-muted">Closed On</p>
             <p className="text-sm font-medium">{formatDisplayDate(closedOn)}</p>
           </div>
         ) : null}

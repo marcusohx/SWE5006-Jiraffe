@@ -7,7 +7,7 @@ export default function SettingsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <p className="text-sm uppercase tracking-[0.2em] text-[color:var(--color-muted)]">Settings</p>
+        <p className="text-sm uppercase tracking-[0.2em] text-muted">Settings</p>
         <h1 className="mt-2 text-3xl font-semibold">Workspace Settings</h1>
       </div>
 
@@ -19,11 +19,11 @@ export default function SettingsPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <p className="text-xs uppercase text-[color:var(--color-muted)]">Workspace Name</p>
+              <p className="text-xs uppercase text-muted">Workspace Name</p>
               <Input defaultValue="Jiraffe Product Ops" />
             </div>
             <div>
-              <p className="text-xs uppercase text-[color:var(--color-muted)]">Primary Domain</p>
+              <p className="text-xs uppercase text-muted">Primary Domain</p>
               <Input defaultValue="jiraffe.io" />
             </div>
             <Button variant="secondary">Save Changes</Button>
@@ -39,14 +39,14 @@ export default function SettingsPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium">SLA risk alerts</p>
-                <p className="text-xs text-[color:var(--color-muted)]">Notify the on-call owner.</p>
+                <p className="text-xs text-muted">Notify the on-call owner.</p>
               </div>
               <Switch checked />
             </div>
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium">Weekly metrics digest</p>
-                <p className="text-xs text-[color:var(--color-muted)]">Send summary every Monday.</p>
+                <p className="text-xs text-muted">Send summary every Monday.</p>
               </div>
               <Switch />
             </div>

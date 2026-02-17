@@ -11,25 +11,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { severityVariant, statusVariant } from "@/lib/constants";
 import { cn, formatDisplayDate, formatIncidentCode } from "@/lib/utils";
-import type { IncidentSeverity, IncidentStatus, IncidentWithNames } from "@/modules/incident/incident.model";
+import type { IncidentWithNames } from "@/modules/incident/incident.model";
 
 export type SortColumn = "ticket" | "status" | "severity" | "assignee" | "updated";
 export type SortDirection = "asc" | "desc";
 export type SortState = { column: SortColumn; direction: SortDirection } | null;
-
-const statusVariant: Record<IncidentStatus, "default" | "info" | "success"> = {
-  Open: "default",
-  "In Progress": "info",
-  Closed: "success",
-};
-
-const severityVariant: Record<IncidentSeverity, "default" | "info" | "warning" | "danger"> = {
-  Low: "default",
-  Medium: "info",
-  High: "warning",
-  Critical: "danger",
-};
 
 function SortIcon({ active, direction }: { active: boolean; direction?: SortDirection }) {
   if (!active || !direction) {
@@ -59,7 +47,7 @@ function SortHeader({
       onClick={() => onToggleSort(column)}
       className={cn(
         "inline-flex items-center gap-1 rounded-md px-1 py-1 transition",
-        active ? "text-[color:var(--color-foreground)]" : "text-[color:var(--color-muted)]"
+        active ? "text-foreground" : "text-muted"
       )}
     >
       <span>{label}</span>
@@ -107,10 +95,10 @@ export function InteractiveDataTable({
         {rows.map((incident) => (
           <TableRow key={incident.id}>
             <TableCell>
-              <Link className="font-semibold text-[color:var(--color-foreground)]" href={`/tickets/${incident.id}`}>
+              <Link className="font-semibold text-foreground" href={`/tickets/${incident.id}`}>
                 {incident.title}
               </Link>
-              <p className="mt-1 text-xs text-[color:var(--color-muted)]">{formatIncidentCode(incident.incidentId)}</p>
+              <p className="mt-1 text-xs text-muted">{formatIncidentCode(incident.incidentId)}</p>
             </TableCell>
             <TableCell>
               <Badge variant={statusVariant[incident.status]}>{incident.status}</Badge>
@@ -119,14 +107,14 @@ export function InteractiveDataTable({
               <Badge variant={severityVariant[incident.severity]}>{incident.severity}</Badge>
             </TableCell>
             <TableCell>{incident.assignedToName}</TableCell>
-            <TableCell className="text-[color:var(--color-muted)]">
+            <TableCell className="text-muted">
               {formatDisplayDate(incident.updatedAt)}
             </TableCell>
             <TableCell>
               <button
                 type="button"
                 aria-label={`Delete ${incident.title}`}
-                className="rounded-full p-2 text-[color:var(--color-muted)] transition hover:bg-[color:var(--color-surface-muted)] hover:text-[color:var(--color-danger)] disabled:opacity-40"
+                className="rounded-full p-2 text-muted transition hover:bg-surface-muted hover:text-danger disabled:opacity-40"
                 disabled={deletingId === incident.id}
                 onClick={() => onRequestDelete(incident)}
               >
@@ -137,7 +125,7 @@ export function InteractiveDataTable({
         ))}
         {rows.length === 0 ? (
           <TableRow>
-            <TableCell colSpan={6} className="text-center text-sm text-[color:var(--color-muted)]">
+            <TableCell colSpan={6} className="text-center text-sm text-muted">
               No tickets match your search and filters.
             </TableCell>
           </TableRow>

@@ -36,19 +36,19 @@ export function IncidentBoardColumn({
 
   return (
     <div className="space-y-4">
-      <div className="rounded-2xl border border-[color:var(--color-border)] bg-white p-4">
+      <div className="rounded-2xl border border-border bg-white p-4">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-semibold">{status}</h2>
           <Badge variant="info">{totalCount ?? tickets.length}</Badge>
         </div>
-        <p className="mt-2 text-xs text-[color:var(--color-muted)]">{description}</p>
+        <p className="mt-2 text-xs text-muted">{description}</p>
       </div>
 
       <div
         ref={setNodeRef}
         className={cn(
           "min-h-24 rounded-2xl border border-dashed border-transparent p-2 transition-colors",
-          isOver && "border-[color:var(--color-accent)] bg-[color:var(--color-accent-soft)]/35"
+          isOver && "border-accent bg-accent-soft/35"
         )}
       >
         <SortableContext items={tickets.map((ticket) => ticket.id)} strategy={verticalListSortingStrategy}>
@@ -63,7 +63,7 @@ export function IncidentBoardColumn({
             {shouldShowPreview && safePreviewIndex === tickets.length ? <IncidentDropPlaceholder /> : null}
 
             {tickets.length === 0 && draggingId && !shouldShowPreview ? (
-              <div className="rounded-xl border border-dashed border-[color:var(--color-border)] p-4 text-xs text-[color:var(--color-muted)]">
+              <div className="rounded-xl border border-dashed border-border p-4 text-xs text-muted">
                 Drop ticket here
               </div>
             ) : null}

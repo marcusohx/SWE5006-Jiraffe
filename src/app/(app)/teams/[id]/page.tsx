@@ -18,23 +18,23 @@ export default async function TeamDetailPage({ params }: { params: Promise<{ id:
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <Link href="/teams" className="text-[color:var(--color-muted)]">
+          <Link href="/teams" className="text-muted">
             <ArrowLeft className="h-4 w-4" />
           </Link>
           <div>
-            <p className="text-sm text-[color:var(--color-muted)]">Team Details</p>
+            <p className="text-sm text-muted">Team Details</p>
             <h1 className="text-3xl font-semibold">{team.name}</h1>
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <div className="rounded-full border border-[color:var(--color-border)] bg-white px-4 py-2 text-xs text-[color:var(--color-muted)]">
+          <div className="rounded-full border border-border bg-white px-4 py-2 text-xs text-muted">
             Team ID: {team.teamId}
           </div>
           <span
             className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${
               team.isActive
-                ? "bg-[color:var(--color-accent-soft)] text-[color:var(--color-accent)]"
-                : "bg-[color:var(--color-surface-muted)] text-[color:var(--color-muted)]"
+                ? "bg-accent-soft text-accent"
+                : "bg-surface-muted text-muted"
             }`}
           >
             {team.isActive ? "Active" : "Inactive"}
@@ -49,12 +49,12 @@ export default async function TeamDetailPage({ params }: { params: Promise<{ id:
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <p className="text-xs uppercase text-[color:var(--color-muted)]">Description</p>
-              <p className="mt-2 text-sm text-[color:var(--color-foreground)]">
+              <p className="text-xs uppercase text-muted">Description</p>
+              <p className="mt-2 text-sm text-foreground">
                 {team.description ?? "No description provided."}
               </p>
             </div>
-            <div className="grid gap-2 text-sm text-[color:var(--color-muted)]">
+            <div className="grid gap-2 text-sm text-muted">
               <div>Created {formatDisplayDate(team.createdAt)}</div>
               <div>Updated {formatDisplayDate(team.updatedAt)}</div>
             </div>
@@ -70,16 +70,16 @@ export default async function TeamDetailPage({ params }: { params: Promise<{ id:
           </CardHeader>
           <CardContent>
             {team.members.length === 0 ? (
-              <p className="text-sm text-[color:var(--color-muted)]">No members added.</p>
+              <p className="text-sm text-muted">No members added.</p>
             ) : (
               <ul className="space-y-3 text-sm">
                 {team.members.map((member) => (
                   <li key={member.userId} className="flex items-center justify-between">
                     <div>
                       <p className="font-medium">{member.name}</p>
-                      <p className="text-xs text-[color:var(--color-muted)]">{member.email}</p>
+                      <p className="text-xs text-muted">{member.email}</p>
                     </div>
-                    <span className="text-xs text-[color:var(--color-muted)]">{member.role}</span>
+                    <span className="text-xs text-muted">{member.role}</span>
                   </li>
                 ))}
               </ul>

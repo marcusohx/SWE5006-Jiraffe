@@ -4,11 +4,9 @@ import { Filter, Search } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { SEVERITY_OPTIONS, STATUS_OPTIONS } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import type { IncidentSeverity, IncidentStatus } from "@/modules/incident/incident.model";
-
-const STATUS_OPTIONS: IncidentStatus[] = ["Open", "In Progress", "Closed"];
-const SEVERITY_OPTIONS: IncidentSeverity[] = ["Critical", "High", "Medium", "Low"];
 
 export function TicketsTableControls({
   searchQuery,
@@ -57,7 +55,7 @@ export function TicketsTableControls({
   return (
     <div className="relative flex w-full flex-wrap items-center gap-3 lg:w-auto" ref={panelRef}>
       <div className="relative w-full lg:w-[320px]">
-        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[color:var(--color-muted)]" />
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
         <Input
           className="pl-9"
           placeholder="Search tickets"
@@ -72,10 +70,10 @@ export function TicketsTableControls({
       </Button>
 
       {open ? (
-        <div className="absolute left-0 top-full z-30 mt-2 w-full max-w-xl rounded-2xl border border-[color:var(--color-border)] bg-white p-4 shadow-[0_18px_40px_-30px_rgba(15,23,42,0.6)] lg:w-[520px]">
+        <div className="absolute left-0 top-full z-30 mt-2 w-full max-w-xl rounded-2xl border border-border bg-white p-4 shadow-[0_18px_40px_-30px_rgba(15,23,42,0.6)] lg:w-[520px]">
           <div className="space-y-4">
             <div>
-              <p className="mb-2 text-xs uppercase text-[color:var(--color-muted)]">Status</p>
+              <p className="mb-2 text-xs uppercase text-muted">Status</p>
               <div className="flex flex-wrap gap-2">
                 {STATUS_OPTIONS.map((option) => (
                   <button
@@ -85,8 +83,8 @@ export function TicketsTableControls({
                     className={cn(
                       "rounded-full border px-3 py-1 text-sm transition",
                       statusFilter.includes(option)
-                        ? "border-[color:var(--color-accent)] bg-[color:var(--color-accent-soft)] text-[color:var(--color-accent)]"
-                        : "border-[color:var(--color-border)] bg-white text-[color:var(--color-foreground)]"
+                        ? "border-accent bg-accent-soft text-accent"
+                        : "border-border bg-white text-foreground"
                     )}
                   >
                     {option}
@@ -96,7 +94,7 @@ export function TicketsTableControls({
             </div>
 
             <div>
-              <p className="mb-2 text-xs uppercase text-[color:var(--color-muted)]">Severity</p>
+              <p className="mb-2 text-xs uppercase text-muted">Severity</p>
               <div className="flex flex-wrap gap-2">
                 {SEVERITY_OPTIONS.map((option) => (
                   <button
@@ -106,8 +104,8 @@ export function TicketsTableControls({
                     className={cn(
                       "rounded-full border px-3 py-1 text-sm transition",
                       severityFilter.includes(option)
-                        ? "border-[color:var(--color-accent)] bg-[color:var(--color-accent-soft)] text-[color:var(--color-accent)]"
-                        : "border-[color:var(--color-border)] bg-white text-[color:var(--color-foreground)]"
+                        ? "border-accent bg-accent-soft text-accent"
+                        : "border-border bg-white text-foreground"
                     )}
                   >
                     {option}
@@ -117,9 +115,9 @@ export function TicketsTableControls({
             </div>
 
             <div>
-              <p className="mb-2 text-xs uppercase text-[color:var(--color-muted)]">Updated At</p>
+              <p className="mb-2 text-xs uppercase text-muted">Updated At</p>
               <div className="grid gap-3 sm:grid-cols-2">
-                <label className="text-xs text-[color:var(--color-muted)]">
+                <label className="text-xs text-muted">
                   From
                   <Input
                     className="mt-1"
@@ -128,7 +126,7 @@ export function TicketsTableControls({
                     onChange={(event) => onUpdatedFromChange(event.target.value)}
                   />
                 </label>
-                <label className="text-xs text-[color:var(--color-muted)]">
+                <label className="text-xs text-muted">
                   To
                   <Input
                     className="mt-1"

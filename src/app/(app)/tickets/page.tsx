@@ -29,7 +29,7 @@ export default async function TicketsPage() {
     <div className="space-y-6">
       <section className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <p className="text-sm uppercase tracking-[0.2em] text-[color:var(--color-muted)]">Tickets</p>
+          <p className="text-sm uppercase tracking-[0.2em] text-muted">Tickets</p>
           <h1 className="mt-2 text-3xl font-semibold">All Tickets</h1>
         </div>
         <Suspense fallback={null}>

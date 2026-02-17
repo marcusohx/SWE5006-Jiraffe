@@ -65,9 +65,9 @@ function LoginPageContent() {
     <main className="min-h-screen bg-[radial-gradient(circle_at_top,#eef5ff,transparent_55%),radial-gradient(circle_at_20%_20%,#fef2e2,transparent_45%)] px-6 py-16">
       <div className="mx-auto flex w-full max-w-4xl flex-col items-center gap-10">
         <div className="text-center">
-          <p className="text-sm uppercase tracking-[0.2em] text-[color:var(--color-muted)]">Welcome back</p>
+          <p className="text-sm uppercase tracking-[0.2em] text-muted">Welcome back</p>
           <h1 className="mt-3 text-3xl font-semibold">Sign in to Jiraffe</h1>
-          <p className="mt-2 text-[color:var(--color-muted)]">
+          <p className="mt-2 text-muted">
             Track tickets, manage sprints, and keep teams aligned.
           </p>
         </div>
@@ -78,7 +78,7 @@ function LoginPageContent() {
           </CardHeader>
           <CardContent className="space-y-4">
             <form className="space-y-4" onSubmit={handleSubmit}>
-              <label className="block text-xs uppercase text-[color:var(--color-muted)]">
+              <label className="block text-xs uppercase text-muted">
                 Email
                 <Input
                   className="mt-2"
@@ -88,7 +88,7 @@ function LoginPageContent() {
                   required
                 />
               </label>
-              <label className="block text-xs uppercase text-[color:var(--color-muted)]">
+              <label className="block text-xs uppercase text-muted">
                 Password
                 <Input
                   className="mt-2"
@@ -114,13 +114,13 @@ function LoginPageContent() {
                 Sign in with GitHub
               </Button>
             ) : (
-              <p className="text-xs text-[color:var(--color-muted)]">GitHub sign-in is disabled.</p>
+              <p className="text-xs text-muted">GitHub sign-in is disabled.</p>
             )}
           </CardContent>
         </Card>
-        <p className="text-center text-xs text-[color:var(--color-muted)]">
+        <p className="text-center text-xs text-muted">
           Need an account?{" "}
-          <Link href="/signup" className="font-semibold text-[color:var(--color-foreground)]">
+          <Link href="/signup" className="font-semibold text-foreground">
             Create one
           </Link>
         </p>

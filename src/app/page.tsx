@@ -27,13 +27,13 @@ export default function Home() {
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-12 px-6 py-16">
         <section className="grid gap-8 lg:grid-cols-[1.2fr_0.8fr] lg:items-center">
           <div>
-            <p className="text-sm uppercase tracking-[0.2em] text-[color:var(--color-muted)]">
+            <p className="text-sm uppercase tracking-[0.2em] text-muted">
               Modern Jira-inspired
             </p>
             <h1 className="mt-4 text-4xl font-semibold leading-tight">
               Jiraffe helps product teams move tickets with clarity and speed.
             </h1>
-            <p className="mt-4 text-lg text-[color:var(--color-muted)]">
+            <p className="mt-4 text-lg text-muted">
               A clean SaaS dashboard and ticket system built for high-velocity teams.
             </p>
             <div className="mt-6 flex flex-wrap gap-3">
@@ -49,9 +49,9 @@ export default function Home() {
           </div>
           <Card className="bg-white/70 backdrop-blur">
             <CardContent className="space-y-4 p-6">
-              <p className="text-xs uppercase text-[color:var(--color-muted)]">Now shipping</p>
+              <p className="text-xs uppercase text-muted">Now shipping</p>
               <h2 className="text-2xl font-semibold">Ticket Operations Studio</h2>
-              <p className="text-sm text-[color:var(--color-muted)]">
+              <p className="text-sm text-muted">
                 Track SLA risk, manage boards, and launch sprint cadences without clutter.
               </p>
               <div className="space-y-3">
@@ -60,14 +60,14 @@ export default function Home() {
                   return (
                     <div
                       key={item.title}
-                      className="flex items-center gap-3 rounded-xl border border-[color:var(--color-border)] bg-white px-4 py-3"
+                      className="flex items-center gap-3 rounded-xl border border-border bg-white px-4 py-3"
                     >
-                      <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[color:var(--color-accent)] text-white">
+                      <span className="flex h-9 w-9 items-center justify-center rounded-full bg-accent text-white">
                         <Icon className="h-4 w-4" />
                       </span>
                       <div>
                         <p className="text-sm font-semibold">{item.title}</p>
-                        <p className="text-xs text-[color:var(--color-muted)]">{item.description}</p>
+                        <p className="text-xs text-muted">{item.description}</p>
                       </div>
                     </div>
                   );

@@ -6,9 +6,7 @@ import { type FormEvent, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-
-type ApiSuccess<T> = { success: true; data: T };
-type ApiError = { success: false; error: string };
+import type { ApiError, ApiSuccess } from "@/types/api";
 
 export function EditableTicketDetails({
   incidentId,
@@ -76,7 +74,7 @@ export function EditableTicketDetails({
 
   return (
     <form className="space-y-4" onSubmit={handleSave}>
-      <label className="block text-xs uppercase text-[color:var(--color-muted)]">
+      <label className="block text-xs uppercase text-muted">
         Ticket Name
         <Input
           className="mt-2"
@@ -87,7 +85,7 @@ export function EditableTicketDetails({
         />
       </label>
 
-      <label className="block text-xs uppercase text-[color:var(--color-muted)]">
+      <label className="block text-xs uppercase text-muted">
         Description
         <Textarea
           className="mt-2 min-h-[120px]"

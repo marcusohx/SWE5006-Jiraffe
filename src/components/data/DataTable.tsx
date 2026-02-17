@@ -8,21 +8,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { severityVariant, statusVariant } from "@/lib/constants";
 import { formatDisplayDate, formatIncidentCode } from "@/lib/utils";
-import type { IncidentSeverity, IncidentStatus, IncidentWithNames } from "@/modules/incident/incident.model";
-
-const statusVariant: Record<IncidentStatus, "default" | "info" | "success"> = {
-  Open: "default",
-  "In Progress": "info",
-  Closed: "success",
-};
-
-const severityVariant: Record<IncidentSeverity, "default" | "info" | "warning" | "danger"> = {
-  Low: "default",
-  Medium: "info",
-  High: "warning",
-  Critical: "danger",
-};
+import type { IncidentWithNames } from "@/modules/incident/incident.model";
 
 export function DataTable({ rows }: { rows: IncidentWithNames[] }) {
   return (
@@ -40,10 +28,10 @@ export function DataTable({ rows }: { rows: IncidentWithNames[] }) {
         {rows.map((incident) => (
           <TableRow key={incident.id}>
             <TableCell>
-              <Link className="font-semibold text-[color:var(--color-foreground)]" href={`/tickets/${incident.id}`}>
+              <Link className="font-semibold text-foreground" href={`/tickets/${incident.id}`}>
                 {incident.title}
               </Link>
-              <p className="mt-1 text-xs text-[color:var(--color-muted)]">{formatIncidentCode(incident.incidentId)}</p>
+              <p className="mt-1 text-xs text-muted">{formatIncidentCode(incident.incidentId)}</p>
             </TableCell>
             <TableCell>
               <Badge variant={statusVariant[incident.status]}>{incident.status}</Badge>
@@ -52,7 +40,7 @@ export function DataTable({ rows }: { rows: IncidentWithNames[] }) {
               <Badge variant={severityVariant[incident.severity]}>{incident.severity}</Badge>
             </TableCell>
             <TableCell>{incident.assignedToName}</TableCell>
-            <TableCell className="text-[color:var(--color-muted)]">
+            <TableCell className="text-muted">
               {formatDisplayDate(incident.updatedAt)}
             </TableCell>
           </TableRow>

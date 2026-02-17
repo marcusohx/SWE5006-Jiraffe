@@ -14,9 +14,9 @@ export default async function DashboardPage() {
     <div className="space-y-8">
       <section className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <p className="text-sm uppercase tracking-[0.2em] text-[color:var(--color-muted)]">Overview</p>
+          <p className="text-sm uppercase tracking-[0.2em] text-muted">Overview</p>
           <h1 className="mt-2 text-3xl font-semibold">Product Operations Dashboard</h1>
-          <p className="mt-2 text-[color:var(--color-muted)]">
+          <p className="mt-2 text-muted">
             Track sprint health, ticket velocity, and team ownership in one command center.
           </p>
         </div>
@@ -49,15 +49,15 @@ export default async function DashboardPage() {
           <CardContent className="space-y-4">
             {spotlightTicket ? (
               <>
-                <p className="text-sm text-[color:var(--color-muted)]">{spotlightTicket.description}</p>
-                <div className="flex flex-wrap gap-3 text-sm text-[color:var(--color-muted)]">
+                <p className="text-sm text-muted">{spotlightTicket.description}</p>
+                <div className="flex flex-wrap gap-3 text-sm text-muted">
                   <span>Assignee: {spotlightTicket.assignedToName}</span>
                   <span>Reporter: {spotlightTicket.createdByName}</span>
                   <span>Updated: {formatDisplayDate(spotlightTicket.updatedAt)}</span>
                 </div>
               </>
             ) : (
-              <p className="text-sm text-[color:var(--color-muted)]">No incidents to display.</p>
+              <p className="text-sm text-muted">No incidents to display.</p>
             )}
           </CardContent>
         </Card>
@@ -69,9 +69,9 @@ export default async function DashboardPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             {activityFeed.map((activity) => (
-              <div key={activity.title} className="rounded-xl border border-[color:var(--color-border)] bg-white p-3">
+              <div key={activity.title} className="rounded-xl border border-border bg-white p-3">
                 <p className="text-sm font-medium">{activity.title}</p>
-                <p className="text-xs text-[color:var(--color-muted)]">{activity.time}</p>
+                <p className="text-xs text-muted">{activity.time}</p>
               </div>
             ))}
           </CardContent>

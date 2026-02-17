@@ -24,7 +24,7 @@ export const Switch = React.forwardRef<HTMLButtonElement, SwitchProps>(
       }}
       className={cn(
         "h-6 w-11 rounded-full border border-transparent transition",
-        checked ? "bg-[color:var(--color-accent)]" : "bg-[color:var(--color-border)]",
+        checked ? "bg-accent" : "bg-border",
         className
       )}
       {...props}

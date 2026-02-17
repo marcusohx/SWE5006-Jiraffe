@@ -5,8 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { TeamForm } from "@/components/teams/TeamForm";
 import { Modal } from "@/components/ui/modal";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-
-type ApiSuccess<T> = { success: true; data: T };
+import type { ApiError, ApiSuccess } from "@/types/api";
 
 type TeamResponse = {
   id: string;
@@ -18,8 +17,6 @@ type TeamResponse = {
   updatedAt: string;
   members: { userId: string; name: string; email: string; role: string }[];
 };
-
-type ApiError = { success: false; error: string };
 
 type TeamPayload = {
   name: string;
@@ -117,7 +114,7 @@ export function EditTeamModal() {
   return (
     <Modal open={open} onClose={close} title="Edit Team">
       {loading ? (
-        <div className="flex items-center gap-2 text-sm text-[color:var(--color-muted)]">
+        <div className="flex items-center gap-2 text-sm text-muted">
           <Loader2 className="h-4 w-4 animate-spin" />
           Loading team...
         </div>

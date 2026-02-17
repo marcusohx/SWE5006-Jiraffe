@@ -48,9 +48,9 @@ export default function SignupPage() {
     <main className="min-h-screen bg-[radial-gradient(circle_at_top,#eef5ff,transparent_55%),radial-gradient(circle_at_20%_20%,#fef2e2,transparent_45%)] px-6 py-16">
       <div className="mx-auto flex w-full max-w-4xl flex-col items-center gap-10">
         <div className="text-center">
-          <p className="text-sm uppercase tracking-[0.2em] text-[color:var(--color-muted)]">Get started</p>
+          <p className="text-sm uppercase tracking-[0.2em] text-muted">Get started</p>
           <h1 className="mt-3 text-3xl font-semibold">Create your Jiraffe workspace</h1>
-          <p className="mt-2 text-[color:var(--color-muted)]">
+          <p className="mt-2 text-muted">
             Spin up a new account and start tracking tickets today.
           </p>
         </div>
@@ -61,7 +61,7 @@ export default function SignupPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <form className="space-y-4" onSubmit={handleSubmit}>
-              <label className="block text-xs uppercase text-[color:var(--color-muted)]">
+              <label className="block text-xs uppercase text-muted">
                 Name
                 <Input
                   className="mt-2"
@@ -70,7 +70,7 @@ export default function SignupPage() {
                   required
                 />
               </label>
-              <label className="block text-xs uppercase text-[color:var(--color-muted)]">
+              <label className="block text-xs uppercase text-muted">
                 Email
                 <Input
                   className="mt-2"
@@ -80,7 +80,7 @@ export default function SignupPage() {
                   required
                 />
               </label>
-              <label className="block text-xs uppercase text-[color:var(--color-muted)]">
+              <label className="block text-xs uppercase text-muted">
                 Password
                 <Input
                   className="mt-2"
@@ -95,9 +95,9 @@ export default function SignupPage() {
                 {isLoading ? "Creating account..." : "Create account"}
               </Button>
             </form>
-            <p className="text-center text-xs text-[color:var(--color-muted)]">
+            <p className="text-center text-xs text-muted">
               Already have an account?{" "}
-              <Link href="/login" className="font-semibold text-[color:var(--color-foreground)]">
+              <Link href="/login" className="font-semibold text-foreground">
                 Sign in
               </Link>
             </p>
