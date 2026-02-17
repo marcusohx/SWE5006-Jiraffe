@@ -3,8 +3,7 @@
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { TeamForm } from "@/components/teams/TeamForm";
 import { Modal } from "@/components/ui/modal";
-
-type ApiSuccess<T> = { success: true; data: T };
+import type { ApiError, ApiSuccess } from "@/types/api";
 
 type TeamResponse = {
   id: string;
@@ -16,8 +15,6 @@ type TeamResponse = {
   updatedAt: string;
   members: { userId: string; name: string; email: string; role: string }[];
 };
-
-type ApiError = { success: false; error: string };
 
 type TeamPayload = {
   name: string;

@@ -37,7 +37,7 @@ export function SortableIncidentCard({ ticket }: { ticket: IncidentWithNames }) 
       <button
         ref={setActivatorNodeRef}
         type="button"
-        className="absolute -right-2 -top-2 inline-flex h-7 w-7 items-center justify-center rounded-full border border-[color:var(--color-border)] bg-white text-[color:var(--color-muted)] shadow-sm transition hover:text-[color:var(--color-foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-accent)] cursor-grab active:cursor-grabbing"
+        className="absolute -right-2 -top-2 inline-flex h-7 w-7 items-center justify-center rounded-full border border-border bg-white text-muted shadow-sm transition hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent cursor-grab active:cursor-grabbing"
         aria-label="Drag ticket"
         {...attributes}
         {...listeners}

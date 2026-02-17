@@ -37,3 +37,7 @@ export function formatIncidentCode(incidentId: number): string {
   const normalized = Number.isFinite(incidentId) ? Math.max(0, Math.trunc(incidentId)) : 0;
   return `JIR-${String(normalized).padStart(3, "0")}`;
 }
+
+export function includesIgnoreCase(value: string, query: string): boolean {
+  return value.toLowerCase().includes(query);
+}

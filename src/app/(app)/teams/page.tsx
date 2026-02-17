@@ -21,7 +21,7 @@ export default async function TeamsPage() {
       </Suspense>
       <section className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <p className="text-sm uppercase tracking-[0.2em] text-[color:var(--color-muted)]">Teams</p>
+          <p className="text-sm uppercase tracking-[0.2em] text-muted">Teams</p>
           <h1 className="mt-2 text-3xl font-semibold">Team Management</h1>
         </div>
         <div className="flex gap-2">
@@ -40,7 +40,7 @@ export default async function TeamsPage() {
             <CardTitle>No Teams</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-sm text-[color:var(--color-muted)]">
+            <p className="text-sm text-muted">
               No teams currently. Please proceed to create a team.
             </p>
           </CardContent>

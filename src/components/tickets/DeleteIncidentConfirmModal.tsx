@@ -24,12 +24,12 @@ export function DeleteIncidentConfirmModal({
   return (
     <Modal open={open} onClose={onClose} title="Delete Ticket">
       <div className="space-y-4">
-        <p className="text-sm text-[color:var(--color-muted)]">
-          Delete <span className="font-semibold text-[color:var(--color-foreground)]">{incident?.title}</span>? This
+        <p className="text-sm text-muted">
+          Delete <span className="font-semibold text-foreground">{incident?.title}</span>? This
           action cannot be undone.
         </p>
         {incident ? (
-          <p className="text-xs text-[color:var(--color-muted)]">Ticket ID: {formatIncidentCode(incident.incidentId)}</p>
+          <p className="text-xs text-muted">Ticket ID: {formatIncidentCode(incident.incidentId)}</p>
         ) : null}
         {error ? <p className="text-sm text-red-600">{error}</p> : null}
         <div className="flex justify-end gap-2">

@@ -60,7 +60,7 @@ export function Dropdown({
           <div
             role="menu"
             className={cn(
-              "absolute z-20 mt-2 min-w-[180px] rounded-xl border border-[color:var(--color-border)] bg-white p-1 shadow-[0_18px_40px_-30px_rgba(15,23,42,0.6)]",
+              "absolute z-20 mt-2 min-w-[180px] rounded-xl border border-border bg-white p-1 shadow-[0_18px_40px_-30px_rgba(15,23,42,0.6)]",
               align === "right" ? "right-0" : "left-0"
             )}
           >
@@ -101,8 +101,8 @@ export function DropdownItem({
       className={cn(
         "flex w-full items-center rounded-lg px-3 py-2 text-left text-sm transition",
         selected
-          ? "bg-[color:var(--color-accent-soft)] text-[color:var(--color-accent)]"
-          : "text-[color:var(--color-foreground)] hover:bg-[color:var(--color-surface-muted)]",
+          ? "bg-accent-soft text-accent"
+          : "text-foreground hover:bg-surface-muted",
         disabled ? "cursor-not-allowed opacity-50" : ""
       )}
     >

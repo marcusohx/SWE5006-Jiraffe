@@ -16,10 +16,7 @@ import {
 } from "@/components/ui/table";
 import { formatDisplayDate } from "@/lib/utils";
 import type { TeamWithMembers } from "@/modules/team/team.model";
-
-type ApiSuccess<T> = { success: true; data: T };
-
-type ApiError = { success: false; error: string };
+import type { ApiError, ApiSuccess } from "@/types/api";
 
 export function TeamsTableSection({ initialRows }: { initialRows: TeamWithMembers[] }) {
   const router = useRouter();
@@ -77,18 +74,18 @@ export function TeamsTableSection({ initialRows }: { initialRows: TeamWithMember
           {rows.map((team) => (
             <TableRow key={team.id}>
               <TableCell>
-                <p className="font-semibold text-[color:var(--color-foreground)]">{team.name}</p>
-                <p className="mt-1 text-xs text-[color:var(--color-muted)]">Team ID: {team.teamId}</p>
+                <p className="font-semibold text-foreground">{team.name}</p>
+                <p className="mt-1 text-xs text-muted">Team ID: {team.teamId}</p>
               </TableCell>
-              <TableCell className="text-[color:var(--color-muted)]">
+              <TableCell className="text-muted">
                 {team.description ?? "No description"}
               </TableCell>
               <TableCell>
                 <span
                   className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${
                     team.isActive
-                      ? "bg-[color:var(--color-accent-soft)] text-[color:var(--color-accent)]"
-                      : "bg-[color:var(--color-surface-muted)] text-[color:var(--color-muted)]"
+                      ? "bg-accent-soft text-accent"
+                      : "bg-surface-muted text-muted"
                   }`}
                 >
                   {team.isActive ? "Active" : "Inactive"}
@@ -96,16 +93,16 @@ export function TeamsTableSection({ initialRows }: { initialRows: TeamWithMember
               </TableCell>
               <TableCell>
                 <p className="text-sm font-medium">{team.members.length} members</p>
-                <p className="mt-1 text-xs text-[color:var(--color-muted)]">
+                <p className="mt-1 text-xs text-muted">
                   {team.members.length
                     ? team.members.map((member) => member.name).join(", ")
                     : "No members"}
                 </p>
               </TableCell>
-              <TableCell className="text-[color:var(--color-muted)]">
+              <TableCell className="text-muted">
                 {formatDisplayDate(team.createdAt)}
               </TableCell>
-              <TableCell className="text-[color:var(--color-muted)]">
+              <TableCell className="text-muted">
                 {formatDisplayDate(team.updatedAt)}
               </TableCell>
               <TableCell>

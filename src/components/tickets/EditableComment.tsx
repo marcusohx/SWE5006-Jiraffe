@@ -4,9 +4,7 @@ import { Loader2, MessageSquare } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-
-type ApiSuccess<T> = { success: true; data: T };
-type ApiError = { success: false; error: string };
+import type { ApiError, ApiSuccess } from "@/types/api";
 
 export function EditableComment({
   incidentId,
@@ -49,8 +47,8 @@ export function EditableComment({
   };
 
   return (
-    <div className="space-y-3 rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-4">
-      <div className="flex items-center gap-2 text-sm font-medium text-[color:var(--color-foreground)]">
+    <div className="space-y-3 rounded-xl border border-border bg-surface p-4">
+      <div className="flex items-center gap-2 text-sm font-medium text-foreground">
         <MessageSquare className="h-4 w-4" />
         Comment
       </div>

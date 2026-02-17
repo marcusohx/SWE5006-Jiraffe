@@ -13,6 +13,7 @@ import {
   useSensors,
 } from "@dnd-kit/core";
 import type { IncidentStatus, IncidentWithNames } from "@/modules/incident/incident.model";
+import type { ApiError, ApiSuccess } from "@/types/api";
 import { IncidentBoardColumn, IncidentDragOverlayCard } from "./IncidentBoardColumn";
 import {
   BOARD_COLUMNS,
@@ -22,9 +23,6 @@ import {
   type DropData,
   type DropTarget,
 } from "./board-dnd-utils";
-
-type ApiSuccess<T> = { success: true; data: T };
-type ApiError = { success: false; error: string };
 
 const columnDescriptions: Record<IncidentStatus, string> = {
   Open: "Triaged and awaiting assignment.",
@@ -281,7 +279,7 @@ export function IncidentBoard({ initialIncidents }: { initialIncidents: Incident
   return (
     <div className="space-y-4">
       {error ? (
-        <div className="rounded-xl border border-[color:var(--color-danger)] bg-[color:var(--color-danger-soft)] px-4 py-3 text-sm text-[color:var(--color-danger)]">
+        <div className="rounded-xl border border-danger bg-danger-soft px-4 py-3 text-sm text-danger">
           {error}
         </div>
       ) : null}
