@@ -8,8 +8,8 @@ import {
   updateTeamById,
 } from "@/modules/team/team.service";
 
-export async function listTeamsController() {
-  const teams = await listTeams();
+export async function listTeamsController(userId: string) {
+  const teams = await listTeams(userId);
   return ok(teams);
 }
 

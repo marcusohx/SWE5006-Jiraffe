@@ -1,4 +1,5 @@
 import { getServerSession } from "next-auth";
+import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { TeamScopedIncidentBoard } from "@/components/board/TeamScopedIncidentBoard";
 import { authOptions } from "@/modules/auth/auth.options";
@@ -7,15 +8,15 @@ import { listTeams } from "@/modules/team/team.service";
 import type { TeamScopeOption } from "@/types/domain";
 
 export default async function BoardPage() {
-  const [session, incidents, teams] = await Promise.all([
-    getServerSession(authOptions),
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) redirect("/login");
+
+  const [incidents, teams] = await Promise.all([
     listIncidents(),
-    listTeams(),
+    listTeams(session.user.id),
   ]);
 
-  const userId = session?.user?.id ?? "";
   const teamOptions: TeamScopeOption[] = teams
-    .filter((team) => team.members.some((member) => member.userId === userId))
     .map((team) => ({
       teamId: team.teamId,
       name: team.name,

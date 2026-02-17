@@ -4,11 +4,13 @@ import {
   createTeam,
   deleteTeamById,
   getTeamById,
+  listTeams,
   updateTeamById,
 } from "@/modules/team/team.service";
 import {
   createTeam as createTeamRepo,
   findTeamById,
+  listTeams as listTeamsRepo,
   softDeleteTeamById,
   updateTeamById as updateTeamByIdRepo,
 } from "@/modules/team/team.repository";
@@ -46,6 +48,22 @@ function makeTeam(overrides: Partial<TeamWithMembers> = {}): TeamWithMembers {
     ...overrides,
   };
 }
+
+describe("team.service — listTeams", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("calls listTeamsRepo with the provided userId", async () => {
+    const teams = [makeTeam()];
+    vi.mocked(listTeamsRepo).mockResolvedValue(teams);
+
+    const result = await listTeams("67dc66fd6f57fd4fce4d8548");
+
+    expect(listTeamsRepo).toHaveBeenCalledWith("67dc66fd6f57fd4fce4d8548");
+    expect(result).toEqual(teams);
+  });
+});
 
 describe("team.service — getTeamById", () => {
   beforeEach(() => {

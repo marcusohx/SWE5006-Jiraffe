@@ -1,4 +1,5 @@
 import { getServerSession } from "next-auth";
+import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CreateTicketButton } from "@/components/tickets/CreateTicketButton";
@@ -8,15 +9,15 @@ import { listIncidents } from "@/modules/incident/incident.service";
 import { listTeams } from "@/modules/team/team.service";
 
 export default async function TicketsPage() {
-  const [session, incidents, teams] = await Promise.all([
-    getServerSession(authOptions),
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) redirect("/login");
+
+  const [incidents, teams] = await Promise.all([
     listIncidents(),
-    listTeams(),
+    listTeams(session.user.id),
   ]);
 
-  const userId = session?.user?.id ?? "";
   const teamScopeOptions: TeamScopeOption[] = teams
-    .filter((team) => team.members.some((member) => member.userId === userId))
     .map((team) => ({
       teamId: team.teamId,
       name: team.name,

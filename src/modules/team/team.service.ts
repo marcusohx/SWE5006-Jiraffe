@@ -32,8 +32,8 @@ async function ensureUsersExist(memberIds: string[]): Promise<void> {
   }
 }
 
-export async function listTeams(): Promise<TeamWithMembers[]> {
-  return listTeamsRepo();
+export async function listTeams(userId: string): Promise<TeamWithMembers[]> {
+  return listTeamsRepo(userId);
 }
 
 export async function getTeamById(id: string): Promise<TeamWithMembers> {

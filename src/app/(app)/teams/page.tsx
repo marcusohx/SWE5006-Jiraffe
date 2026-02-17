@@ -1,15 +1,20 @@
+import { getServerSession } from "next-auth";
 import { Plus } from "lucide-react";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { CreateTeamModal } from "@/components/teams/CreateTeamModal";
 import { EditTeamModal } from "@/components/teams/EditTeamModal";
 import { TeamsTableSection } from "@/components/teams/TeamsTableSection";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { authOptions } from "@/modules/auth/auth.options";
 import { listTeams } from "@/modules/team/team.service";
 
 export default async function TeamsPage() {
-  const teams = await listTeams();
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) redirect("/login");
+  const teams = await listTeams(session.user.id);
 
   return (
     <div className="space-y-6">

@@ -131,10 +131,16 @@ async function setTeamMembers(teamId: number, memberIds: string[]): Promise<void
   await addMembersToTeam(teamId, toAdd);
 }
 
-export async function listTeams(): Promise<TeamWithMembers[]> {
+export async function listTeams(userId: string): Promise<TeamWithMembers[]> {
   await connectMongo();
-  const teams = await TeamModel.find().sort({ createdAt: -1 });
-  const teamIds = teams.map((team) => team.team_id);
+  const userTeams = await UserTeamModel.find({
+    user_id: new mongoose.Types.ObjectId(userId),
+  }).lean();
+  const teamIds = userTeams.map((ut) => ut.team_id);
+  if (teamIds.length === 0) return [];
+  const teams = await TeamModel.find({ team_id: { $in: teamIds } })
+    .sort({ createdAt: -1 })
+    .lean();
   const memberMap = await listTeamMembers(teamIds);
   return teams.map((team) => mapTeam(team, memberMap.get(team.team_id) ?? []));
 }
