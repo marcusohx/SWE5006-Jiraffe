@@ -1,14 +1,30 @@
+import { getServerSession } from "next-auth";
+import { redirect } from "next/navigation";
 import { ArrowUpRight } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { formatDisplayDate } from "@/lib/utils";
-import { activityFeed, dashboardMetrics } from "@/lib/mock-data";
+import { formatDisplayDate, formatRelativeTime } from "@/lib/utils";
+import { dashboardMetrics } from "@/lib/mock-data";
+import { authOptions } from "@/modules/auth/auth.options";
 import { listIncidents } from "@/modules/incident/incident.service";
+import { listTeams } from "@/modules/team/team.service";
+import { listRecentActivities } from "@/modules/activity/activity.service";
 
 export default async function DashboardPage() {
-  const incidents = await listIncidents();
-  const spotlightTicket = incidents[0] ?? null;
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) redirect("/login");
+
+  const [incidents, teams] = await Promise.all([
+    listIncidents(),
+    listTeams(session.user.id),
+  ]);
+
+  const teamIds = teams.map((t) => t.teamId);
+  const scopedIncidents = incidents.filter((incident) => teamIds.includes(incident.teamId));
+  const spotlightTicket = scopedIncidents[0] ?? null;
+
+  const activities = await listRecentActivities(teamIds, 3);
 
   return (
     <div className="space-y-8">
@@ -68,12 +84,16 @@ export default async function DashboardPage() {
             <CardTitle>Latest Updates</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {activityFeed.map((activity) => (
-              <div key={activity.title} className="rounded-xl border border-border bg-white p-3">
-                <p className="text-sm font-medium">{activity.title}</p>
-                <p className="text-xs text-muted">{activity.time}</p>
-              </div>
-            ))}
+            {activities.length === 0 ? (
+              <p className="text-sm text-muted">No recent activity.</p>
+            ) : (
+              activities.map((activity) => (
+                <div key={activity.id} className="rounded-xl border border-border bg-white p-3">
+                  <p className="text-sm font-medium">{activity.description}</p>
+                  <p className="text-xs text-muted">{formatRelativeTime(activity.createdAt)}</p>
+                </div>
+              ))
+            )}
           </CardContent>
         </Card>
       </section>

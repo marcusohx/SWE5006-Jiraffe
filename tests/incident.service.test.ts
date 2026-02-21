@@ -23,6 +23,10 @@ vi.mock("@/modules/incident/incident.repository", () => ({
   updateIncidentById: vi.fn(),
 }));
 
+vi.mock("@/modules/activity/activity.service", () => ({
+  logActivity: vi.fn(),
+}));
+
 function makeIncident(overrides: Partial<IncidentWithNames> = {}): IncidentWithNames {
   return {
     id: "incident-1",
