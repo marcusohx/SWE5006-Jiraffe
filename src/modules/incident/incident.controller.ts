@@ -13,8 +13,12 @@ export async function listIncidentsController() {
   return ok(incidents);
 }
 
-export async function createIncidentController(input: CreateIncidentInput, userId: string) {
-  const incident = await createIncident(input, userId);
+export async function createIncidentController(
+  input: CreateIncidentInput,
+  userId: string,
+  userName: string
+) {
+  const incident = await createIncident(input, userId, userName);
   return ok(incident, 201);
 }
 
@@ -23,12 +27,21 @@ export async function getIncidentByIdController(id: string) {
   return ok(incident);
 }
 
-export async function updateIncidentByIdController(id: string, input: UpdateIncidentInput) {
-  const incident = await updateIncidentById(id, input);
+export async function updateIncidentByIdController(
+  id: string,
+  input: UpdateIncidentInput,
+  userId: string,
+  userName: string
+) {
+  const incident = await updateIncidentById(id, input, userId, userName);
   return ok(incident);
 }
 
-export async function deleteIncidentByIdController(id: string) {
-  await deleteIncidentById(id);
+export async function deleteIncidentByIdController(
+  id: string,
+  userId: string,
+  userName: string
+) {
+  await deleteIncidentById(id, userId, userName);
   return ok({ deleted: true });
 }
