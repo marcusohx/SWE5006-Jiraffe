@@ -1,0 +1,143 @@
+# =============================================================================
+# Production Docker Compose – AWS EC2 Instance
+# Hosts: Caddy (HTTPS) + App + MongoDB + SonarQube + PostgreSQL
+# =============================================================================
+# Required environment variables (set in /opt/jiraffe/.env):
+#   APP_IMAGE           – Docker image tag (set by CI/CD)
+#   NEXTAUTH_SECRET     – strong random secret
+#   NEXTAUTH_URL        – https://YOUR_EC2_PUBLIC_IP
+#   SONAR_JDBC_PASSWORD – PostgreSQL password for SonarQube
+# =============================================================================
+
+services:
+  # ---------------------------------------------------------------------------
+  # Caddy – Reverse Proxy with automatic HTTPS (Let's Encrypt)
+  # ---------------------------------------------------------------------------
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    networks:
+      - app-network
+    depends_on:
+      - app
+      - sonarqube
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: "0.25"
+
+  # ---------------------------------------------------------------------------
+  # Application
+  # ---------------------------------------------------------------------------
+  app:
+    image: ${APP_IMAGE:-ghcr.io/marcus/swe5006-jiraffe:latest}
+    restart: unless-stopped
+    expose:
+      - "3000"
+    environment:
+      - NODE_ENV=production
+      - MONGODB_URI=mongodb://mongodb:27017/swe5006
+      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
+      - NEXTAUTH_URL=${NEXTAUTH_URL:-https://localhost}
+    depends_on:
+      mongodb:
+        condition: service_started
+    networks:
+      - app-network
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "0.5"
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ---------------------------------------------------------------------------
+  # MongoDB
+  # ---------------------------------------------------------------------------
+  mongodb:
+    image: mongo:7
+    restart: unless-stopped
+    expose:
+      - "27017"
+    volumes:
+      - mongo-data:/data/db
+    networks:
+      - app-network
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: "0.5"
+
+  # ---------------------------------------------------------------------------
+  # SonarQube (Community Edition)
+  # ---------------------------------------------------------------------------
+  sonarqube:
+    image: sonarqube:lts-community
+    restart: unless-stopped
+    expose:
+      - "9000"
+    environment:
+      - SONAR_JDBC_URL=jdbc:postgresql://sonar-db:5432/sonarqube
+      - SONAR_JDBC_USERNAME=sonarqube
+      - SONAR_JDBC_PASSWORD=${SONAR_JDBC_PASSWORD:-sonarqube}
+    volumes:
+      - sonarqube-data:/opt/sonarqube/data
+      - sonarqube-logs:/opt/sonarqube/logs
+      - sonarqube-extensions:/opt/sonarqube/extensions
+    depends_on:
+      sonar-db:
+        condition: service_started
+    networks:
+      - app-network
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+          cpus: "2"
+
+  # ---------------------------------------------------------------------------
+  # PostgreSQL (SonarQube backend)
+  # ---------------------------------------------------------------------------
+  sonar-db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=sonarqube
+      - POSTGRES_PASSWORD=${SONAR_JDBC_PASSWORD:-sonarqube}
+      - POSTGRES_DB=sonarqube
+    volumes:
+      - sonar-postgres-data:/var/lib/postgresql/data
+    networks:
+      - app-network
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "0.5"
+
+volumes:
+  caddy-data:
+  caddy-config:
+  mongo-data:
+  sonarqube-data:
+  sonarqube-logs:
+  sonarqube-extensions:
+  sonar-postgres-data:
+
+networks:
+  app-network:
+    driver: bridge

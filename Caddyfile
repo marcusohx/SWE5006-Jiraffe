@@ -1,0 +1,42 @@
+# =============================================================================
+# Caddyfile – HTTPS reverse proxy
+# =============================================================================
+# Uses self-signed certs (tls internal) so no domain is needed.
+# Access via: https://YOUR_EC2_PUBLIC_IP (app)
+#             https://YOUR_EC2_PUBLIC_IP/sonar (SonarQube)
+#
+# Browser will show a "Not Secure" warning – click Advanced > Proceed.
+# This is normal for self-signed certs and fine for a university project.
+#
+# If you later buy a domain, replace ":443" with your domain name
+# and remove "tls internal" – Caddy will auto-provision Let's Encrypt certs.
+# =============================================================================
+
+:443 {
+	tls internal
+
+	handle /sonar/* {
+		uri strip_prefix /sonar
+		reverse_proxy sonarqube:9000
+	}
+
+	handle /sonar {
+		redir /sonar/ permanent
+	}
+
+	handle {
+		reverse_proxy app:3000
+	}
+
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+}
+
+:80 {
+	redir https://{host}{uri} permanent
+}
