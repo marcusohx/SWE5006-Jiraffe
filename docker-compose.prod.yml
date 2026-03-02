@@ -27,8 +27,12 @@ services:
     networks:
       - app-network
     depends_on:
-      - app
-      - sonarqube
+      sonarqube:
+        condition: service_started
+        required: false
+      app:
+        condition: service_started
+        required: false
     deploy:
       resources:
         limits:
