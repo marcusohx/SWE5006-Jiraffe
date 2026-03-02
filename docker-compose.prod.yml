@@ -49,7 +49,7 @@ services:
       - "3000"
     environment:
       - NODE_ENV=production
-      - MONGODB_URI=mongodb://mongodb:27017/swe5006
+      - MONGODB_URI=${MONGODB_URI:-mongodb://mongodb:27017/swe5006}
       - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
       - NEXTAUTH_URL=${NEXTAUTH_URL:-https://localhost}
     depends_on:

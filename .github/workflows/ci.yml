@@ -37,6 +37,7 @@ permissions:
   packages: write
   security-events: write
   actions: read
+  issues: write
 
 # ---------------------------------------------------------------------------
 # STAGE 1: Build & Lint
