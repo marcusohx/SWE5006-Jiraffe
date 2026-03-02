@@ -65,6 +65,9 @@ jobs:
 
       - name: Build application
         run: npm run build
+        env:
+          MONGODB_URI: mongodb://localhost:27017/build-placeholder
+          NEXTAUTH_SECRET: build-placeholder-secret
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
