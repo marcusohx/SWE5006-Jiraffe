@@ -13,6 +13,8 @@ export default defineConfig({
     coverage: {
       reporter: ["text", "lcov"],
       reportsDirectory: "coverage",
+      include: ["src/**"],
+      exclude: ["src/types/**"],
     },
   },
 });
