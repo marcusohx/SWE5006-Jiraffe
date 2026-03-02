@@ -247,7 +247,7 @@ jobs:
       - name: Scan Docker image with Trivy
         run: |
           curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin
-          trivy image --severity CRITICAL,HIGH --format table ${{ env.DOCKER_IMAGE }}:${{ github.sha }} || true
+          trivy image --severity CRITICAL,HIGH --format table ${{ env.DOCKER_IMAGE }}:latest || true
 
   # ---------------------------------------------------------------------------
   # STAGE 6: Deploy to Staging (AWS EC2)
@@ -277,10 +277,10 @@ jobs:
             # outside the Actions runner (and GHCR is private for private repos).
             echo "${{ secrets.GH_PAT }}" | docker login ghcr.io -u ${{ secrets.GH_USERNAME }} --password-stdin
             
-            docker pull ${{ env.DOCKER_IMAGE }}:${{ github.sha }}
+            docker pull ${{ env.DOCKER_IMAGE }}:latest
             
             # Update .env with new image tag and restart
-            sed -i "s|^APP_IMAGE=.*|APP_IMAGE=${{ env.DOCKER_IMAGE }}:${{ github.sha }}|" .env
+            sed -i "s|^APP_IMAGE=.*|APP_IMAGE=${{ env.DOCKER_IMAGE }}:latest|" .env
             docker compose --profile deploy -f docker-compose.prod.yml up -d app
             
             echo "Waiting for application to become healthy..."
