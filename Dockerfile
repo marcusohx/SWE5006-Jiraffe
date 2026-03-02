@@ -7,6 +7,8 @@ FROM node:24.13.0-alpine AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
+ENV MONGODB_URI=mongodb://placeholder:27017/build
+ENV NEXTAUTH_SECRET=build-placeholder-secret
 RUN npm run build
 
 FROM node:24.13.0-alpine AS runner
