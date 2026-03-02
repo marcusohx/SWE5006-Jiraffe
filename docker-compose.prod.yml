@@ -27,12 +27,7 @@ services:
     networks:
       - app-network
     depends_on:
-      sonarqube:
-        condition: service_started
-        required: false
-      app:
-        condition: service_started
-        required: false
+      - sonarqube
     deploy:
       resources:
         limits:
@@ -42,9 +37,14 @@ services:
   # ---------------------------------------------------------------------------
   # Application
   # ---------------------------------------------------------------------------
+  # Uses "deploy" profile – only starts when image exists.
+  # Start with: docker compose --profile deploy -f docker-compose.prod.yml up -d app
+  # The CI/CD pipeline activates this automatically.
   app:
-    image: ${APP_IMAGE:-ghcr.io/marcus/swe5006-jiraffe:latest}
+    image: ${APP_IMAGE:-ghcr.io/marcusohx/swe5006-jiraffe:latest}
     restart: unless-stopped
+    profiles:
+      - deploy
     expose:
       - "3000"
     environment:
@@ -98,6 +98,7 @@ services:
       - SONAR_JDBC_URL=jdbc:postgresql://sonar-db:5432/sonarqube
       - SONAR_JDBC_USERNAME=sonarqube
       - SONAR_JDBC_PASSWORD=${SONAR_JDBC_PASSWORD:-sonarqube}
+      - SONAR_WEB_CONTEXT=/sonar
     volumes:
       - sonarqube-data:/opt/sonarqube/data
       - sonarqube-logs:/opt/sonarqube/logs
