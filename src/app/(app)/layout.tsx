@@ -4,6 +4,8 @@ import { Sidebar } from "@/components/layout/Sidebar";
 import { Topbar } from "@/components/layout/Topbar";
 import { AuthProvider } from "@/components/providers/AuthProvider";
 
+export const dynamic = "force-dynamic";
+
 export default function AppLayout({ children }: { children: ReactNode }) {
   return (
     <AuthProvider>
