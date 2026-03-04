@@ -1,6 +1,7 @@
 import { ArrowLeft, Users } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { TeamCodeCopyButton } from "@/components/teams/TeamCodeCopyButton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatDisplayDate } from "@/lib/utils";
 import { getTeamById } from "@/modules/team/team.service";
@@ -29,6 +30,9 @@ export default async function TeamDetailPage({ params }: { params: Promise<{ id:
         <div className="flex items-center gap-2">
           <div className="rounded-full border border-border bg-white px-4 py-2 text-xs text-muted">
             Team ID: {team.teamId}
+          </div>
+          <div className="rounded-full border border-border bg-white px-2 py-1 text-xs text-muted">
+            <TeamCodeCopyButton teamCode={team.teamCode} />
           </div>
           <span
             className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${

@@ -10,6 +10,7 @@ import type { ApiError, ApiSuccess } from "@/types/api";
 type TeamResponse = {
   id: string;
   teamId: number;
+  teamCode: string;
   name: string;
   description: string | null;
   isActive: boolean;
