@@ -26,6 +26,7 @@
 CLAUDE.md
 /.claude
 /docs
+AGENTS.md
 
 # debug
 npm-debug.log*

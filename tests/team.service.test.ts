@@ -39,6 +39,7 @@ function makeTeam(overrides: Partial<TeamWithMembers> = {}): TeamWithMembers {
   return {
     id: "team-doc-id",
     teamId: 1,
+    teamCode: "ABCDEF",
     name: "Engineering",
     description: null,
     isActive: true,

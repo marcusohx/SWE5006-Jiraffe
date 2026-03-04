@@ -3,6 +3,7 @@
 export interface Team {
   id: string;
   teamId: number;
+  teamCode: string;
   name: string;
   description: string | null;
   isActive: boolean;
@@ -38,6 +39,14 @@ export interface UpdateTeamRepositoryInput {
 const teamSchema = new Schema(
   {
     team_id: { type: Number, required: true, unique: true },
+    team_code: {
+      type: String,
+      required: true,
+      unique: true,
+      uppercase: true,
+      trim: true,
+      match: /^[A-Z]{6}$/,
+    },
     team_name: { type: String, required: true, trim: true },
     description: { type: String, default: null },
     is_active: { type: Boolean, default: true },

@@ -26,6 +26,7 @@ function mapTeam(doc: TeamDocument, members: TeamMember[]): TeamWithMembers {
   return {
     id: doc._id.toString(),
     teamId: doc.team_id,
+    teamCode: doc.team_code ?? "",
     name: doc.team_name,
     description: doc.description ?? null,
     isActive: doc.is_active,
@@ -94,6 +95,15 @@ async function getNextTeamId(): Promise<number> {
   return counter.seq;
 }
 
+function generateTeamCode(): string {
+  const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  let code = "";
+  for (let i = 0; i < 6; i += 1) {
+    code += alphabet[Math.floor(Math.random() * alphabet.length)];
+  }
+  return code;
+}
+
 async function addMembersToTeam(teamId: number, memberIds: string[]): Promise<void> {
   if (memberIds.length === 0) {
     return;
@@ -153,11 +163,13 @@ export async function createTeam(
   let created: TeamDocument | null = null;
   let teamId = 0;
 
-  for (let attempt = 0; attempt < 3; attempt += 1) {
+  for (let attempt = 0; attempt < 8; attempt += 1) {
     teamId = await getNextTeamId();
+    const teamCode = generateTeamCode();
     try {
       created = await TeamModel.create({
         team_id: teamId,
+        team_code: teamCode,
         team_name: data.name,
         description: data.description ?? null,
         is_active: data.isActive ?? true,
@@ -165,7 +177,7 @@ export async function createTeam(
       break;
     } catch (error) {
       const code = (error as { code?: number }).code;
-      if (code === 11000 && attempt < 2) {
+      if (code === 11000 && attempt < 7) {
         continue;
       }
       throw error;

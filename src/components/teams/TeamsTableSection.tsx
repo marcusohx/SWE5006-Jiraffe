@@ -5,6 +5,7 @@ import { Eye, Pencil, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { DeleteTeamConfirmModal } from "@/components/teams/DeleteTeamConfirmModal";
+import { TeamCodeCopyButton } from "@/components/teams/TeamCodeCopyButton";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -62,6 +63,7 @@ export function TeamsTableSection({ initialRows }: { initialRows: TeamWithMember
         <TableHeader>
           <TableRow>
             <TableHead>Team</TableHead>
+            <TableHead>Team Code</TableHead>
             <TableHead>Description</TableHead>
             <TableHead>Status</TableHead>
             <TableHead>Members</TableHead>
@@ -76,6 +78,9 @@ export function TeamsTableSection({ initialRows }: { initialRows: TeamWithMember
               <TableCell>
                 <p className="font-semibold text-foreground">{team.name}</p>
                 <p className="mt-1 text-xs text-muted">Team ID: {team.teamId}</p>
+              </TableCell>
+              <TableCell>
+                <TeamCodeCopyButton teamCode={team.teamCode} />
               </TableCell>
               <TableCell className="text-muted">
                 {team.description ?? "No description"}
