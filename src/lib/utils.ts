@@ -41,3 +41,23 @@ export function formatIncidentCode(incidentId: number): string {
 export function includesIgnoreCase(value: string, query: string): boolean {
   return value.toLowerCase().includes(query);
 }
+
+export function formatRelativeTime(date: Date | string): string {
+  const now = new Date();
+  const target = date instanceof Date ? date : new Date(date);
+  const diffMs = now.getTime() - target.getTime();
+  const diffSec = Math.floor(diffMs / 1000);
+  const diffMin = Math.floor(diffSec / 60);
+  const diffHr = Math.floor(diffMin / 60);
+  const diffDay = Math.floor(diffHr / 24);
+
+  if (diffSec < 60) return "Just now";
+  if (diffMin === 1) return "1 minute ago";
+  if (diffMin < 60) return `${diffMin} minutes ago`;
+  if (diffHr === 1) return "1 hour ago";
+  if (diffHr < 24) return `${diffHr} hours ago`;
+  if (diffDay === 1) return "Yesterday";
+  if (diffDay < 7) return `${diffDay} days ago`;
+  if (diffDay < 30) return `${Math.floor(diffDay / 7)} weeks ago`;
+  return formatDisplayDate(target);
+}

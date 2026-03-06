@@ -24,7 +24,7 @@ export async function POST(request: Request) {
     }
     const body = await request.json();
     const input = parseCreateIncident(body);
-    return await createIncidentController(input, session.user.id);
+    return await createIncidentController(input, session.user.id, session.user.name ?? "Unknown");
   } catch (error) {
     return handleApiError(error);
   }
