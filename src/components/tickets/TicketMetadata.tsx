@@ -1,16 +1,26 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { IncidentAcknowledgeButton } from "@/components/tickets/IncidentAcknowledgeButton";
+import { IncidentCloseButton } from "@/components/tickets/IncidentCloseButton";
+import { IncidentReassignControl } from "@/components/tickets/IncidentReassignControl";
+import { SlaStatusBadge } from "@/components/tickets/SlaStatusBadge";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dropdown, DropdownItem } from "@/components/ui/dropdown";
 import { SEVERITY_OPTIONS, STATUS_OPTIONS, severityVariant, statusVariant } from "@/lib/constants";
-import { capitalizeName, formatDisplayDate } from "@/lib/utils";
+import { capitalizeName, formatDisplayDate, formatDisplayDateTime } from "@/lib/utils";
 import type { IncidentSeverity, IncidentStatus, IncidentWithNames } from "@/modules/incident/incident.model";
 import type { ApiError, ApiSuccess } from "@/types/api";
 import type { TeamOptionWithMembers, UserOption } from "@/types/domain";
 
-export function TicketMetadata({ incident }: { incident: IncidentWithNames }) {
+export function TicketMetadata({
+  incident,
+  currentUserId,
+}: {
+  incident: IncidentWithNames;
+  currentUserId: string | null;
+}) {
   const [status, setStatus] = useState<IncidentStatus>(incident.status);
   const [severity, setSeverity] = useState<IncidentSeverity>(incident.severity);
   const [assignedToId, setAssignedToId] = useState(incident.assignedTo);
@@ -88,6 +98,8 @@ export function TicketMetadata({ incident }: { incident: IncidentWithNames }) {
       capitalizeName(a.name).localeCompare(capitalizeName(b.name))
     );
   }, [teams, incident.teamId]);
+
+  const canManageIncident = currentUserId === incident.assignedTo;
 
   const updateIncident = async (
     updates: Partial<{
@@ -229,7 +241,7 @@ export function TicketMetadata({ incident }: { incident: IncidentWithNames }) {
               <DropdownItem
                 key={option}
                 selected={option === status}
-                disabled={Boolean(updatingField)}
+                disabled={Boolean(updatingField) || !canManageIncident}
                 onClick={() => onStatusChange(option)}
               >
                 {option}
@@ -270,7 +282,7 @@ export function TicketMetadata({ incident }: { incident: IncidentWithNames }) {
                 <DropdownItem
                   key={user.id}
                   selected={user.id === assignedToId}
-                  disabled={Boolean(updatingField)}
+                  disabled={Boolean(updatingField) || !canManageIncident}
                   onClick={() => onAssigneeChange(user.id)}
                 >
                   {capitalizeName(user.name)}
@@ -295,7 +307,7 @@ export function TicketMetadata({ incident }: { incident: IncidentWithNames }) {
                 <DropdownItem
                   key={user.id}
                   selected={user.id === assignedById}
-                  disabled={Boolean(updatingField)}
+                  disabled={Boolean(updatingField) || !canManageIncident}
                   onClick={() => onAssignedByChange(user.id)}
                 >
                   {capitalizeName(user.name)}
@@ -309,6 +321,56 @@ export function TicketMetadata({ incident }: { incident: IncidentWithNames }) {
             <p className="text-xs uppercase text-muted">Closed On</p>
             <p className="text-sm font-medium">{formatDisplayDate(closedOn)}</p>
           </div>
+        ) : null}
+
+        <div className="rounded-2xl border border-border bg-surface p-4">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-xs uppercase text-muted">SLA</p>
+              <p className="mt-1 text-sm font-medium">Current compliance state</p>
+            </div>
+            <SlaStatusBadge incident={incident} />
+          </div>
+          <div className="mt-3 space-y-2 text-sm text-muted">
+            <p>Started {formatDisplayDateTime(incident.sla.startedAt)}</p>
+            <p>Response due {formatDisplayDateTime(incident.sla.responseDueAt)}</p>
+            <p>Resolution due {formatDisplayDateTime(incident.sla.resolutionDueAt)}</p>
+            {incident.sla.acknowledgedAt ? (
+              <p>Acknowledged {formatDisplayDateTime(incident.sla.acknowledgedAt)}</p>
+            ) : null}
+          </div>
+        </div>
+
+        {canManageIncident && incident.status === "Open" ? (
+          <div className="space-y-3 rounded-2xl border border-border bg-surface p-4">
+            <p className="text-xs uppercase text-muted">Action Required</p>
+            <div className="flex flex-wrap gap-2">
+              <IncidentAcknowledgeButton incidentId={incident.id} />
+              <IncidentReassignControl
+                incidentId={incident.id}
+                currentAssigneeId={incident.assignedTo}
+                users={users}
+              />
+            </div>
+          </div>
+        ) : null}
+
+        {canManageIncident && incident.status === "In Progress" ? (
+          <div className="space-y-3 rounded-2xl border border-border bg-surface p-4">
+            <p className="text-xs uppercase text-muted">Resolution</p>
+            <div className="flex flex-wrap gap-2">
+              <IncidentCloseButton incidentId={incident.id} />
+              <IncidentReassignControl
+                incidentId={incident.id}
+                currentAssigneeId={incident.assignedTo}
+                users={users}
+              />
+            </div>
+          </div>
+        ) : null}
+
+        {!canManageIncident ? (
+          <p className="text-xs text-muted">Only the assigned user can acknowledge, reassign, or close this ticket.</p>
         ) : null}
 
         {error ? <p className="text-sm text-red-600">{error}</p> : null}

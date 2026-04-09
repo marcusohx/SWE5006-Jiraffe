@@ -12,16 +12,20 @@ import { formatIncidentCode, includesIgnoreCase } from "@/lib/utils";
 import { useTeamSelection } from "@/hooks/useTeamSelection";
 import type { IncidentSeverity, IncidentStatus, IncidentWithNames } from "@/modules/incident/incident.model";
 import type { ApiError, ApiSuccess } from "@/types/api";
-import type { TeamScopeOption } from "@/types/domain";
+import type { TeamScopeOption, TeamOptionWithMembers } from "@/types/domain";
 
 export type { TeamScopeOption };
 
 export function TicketsTableSection({
   initialRows,
   teamOptions,
+  teamOptionsWithMembers,
+  currentUserId,
 }: {
   initialRows: IncidentWithNames[];
   teamOptions: TeamScopeOption[];
+  teamOptionsWithMembers: TeamOptionWithMembers[];
+  currentUserId: string;
 }) {
   const router = useRouter();
   const { selectedTeamId, selectedTeam, onSelectTeam } = useTeamSelection(teamOptions);
@@ -238,6 +242,8 @@ export function TicketsTableSection({
         rows={visibleRows}
         sort={sort}
         onToggleSort={onToggleSort}
+        currentUserId={currentUserId}
+        teamOptionsWithMembers={teamOptionsWithMembers}
         onRequestDelete={(incident) => {
           setDeleteError(null);
           setIncidentToDelete(incident);

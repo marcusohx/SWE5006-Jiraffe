@@ -19,6 +19,7 @@ vi.mock("@/modules/incident/incident.repository", () => ({
   createIncident: vi.fn(),
   deleteIncidentById: vi.fn(),
   findIncidentById: vi.fn(),
+  listIncidentInboxForUser: vi.fn(),
   listIncidents: vi.fn(),
   updateIncidentById: vi.fn(),
 }));
@@ -43,6 +44,16 @@ function makeIncident(overrides: Partial<IncidentWithNames> = {}): IncidentWithN
     resolvedOn: null,
     closedOn: null,
     comment: null,
+    sla: {
+      startedAt: new Date("2026-01-01T00:00:00.000Z"),
+      responseDueAt: new Date("2026-01-01T00:15:00.000Z"),
+      resolutionDueAt: new Date("2026-01-01T04:00:00.000Z"),
+      acknowledgedAt: null,
+      state: "Running",
+      stoppedAt: null,
+      breachedResponse: false,
+      breachedResolution: false,
+    },
     createdAt: new Date("2026-01-01T00:00:00.000Z"),
     updatedAt: new Date("2026-01-01T00:00:00.000Z"),
     createdByName: "Creator",
@@ -73,6 +84,16 @@ describe("incident.service", () => {
       resolvedOn: null,
       closedOn: null,
       comment: null,
+      sla: {
+        startedAt: new Date("2026-01-01T00:00:00.000Z"),
+        responseDueAt: new Date("2026-01-01T00:15:00.000Z"),
+        resolutionDueAt: new Date("2026-01-01T04:00:00.000Z"),
+        acknowledgedAt: null,
+        state: "Running",
+        stoppedAt: null,
+        breachedResponse: false,
+        breachedResolution: false,
+      },
       createdAt: new Date("2026-01-01T00:00:00.000Z"),
       updatedAt: new Date("2026-01-01T00:00:00.000Z"),
     });
@@ -100,9 +121,10 @@ describe("incident.service", () => {
   });
 
   it("sets closedOn when status changes to Closed", async () => {
+    vi.mocked(findIncidentById).mockResolvedValue(makeIncident({ assignedTo: "u1" }));
     vi.mocked(updateIncidentByIdRepo).mockResolvedValue(makeIncident({ status: "Closed" }));
 
-    await updateIncidentById("incident-1", { status: "Closed" });
+    await updateIncidentById("incident-1", { status: "Closed" }, "u1", "User One");
 
     expect(updateIncidentByIdRepo).toHaveBeenCalledWith(
       "incident-1",
@@ -114,9 +136,12 @@ describe("incident.service", () => {
   });
 
   it("clears closedOn when reopening incidents", async () => {
+    vi.mocked(findIncidentById).mockResolvedValue(
+      makeIncident({ status: "Closed", assignedTo: "u1", sla: { ...makeIncident().sla, state: "Stopped" } })
+    );
     vi.mocked(updateIncidentByIdRepo).mockResolvedValue(makeIncident({ status: "Open", closedOn: null }));
 
-    await updateIncidentById("incident-1", { status: "Open" });
+    await updateIncidentById("incident-1", { status: "Open" }, "u1", "User One");
 
     expect(updateIncidentByIdRepo).toHaveBeenCalledWith(
       "incident-1",
@@ -128,6 +153,7 @@ describe("incident.service", () => {
   });
 
   it("does not change closedOn when status is not updated", async () => {
+    vi.mocked(findIncidentById).mockResolvedValue(makeIncident());
     vi.mocked(updateIncidentByIdRepo).mockResolvedValue(makeIncident());
 
     await updateIncidentById("incident-1", { severity: "High" });
@@ -137,9 +163,10 @@ describe("incident.service", () => {
   });
 
   it("clears closedOn when status changes to In Progress", async () => {
+    vi.mocked(findIncidentById).mockResolvedValue(makeIncident({ assignedTo: "u1" }));
     vi.mocked(updateIncidentByIdRepo).mockResolvedValue(makeIncident({ status: "In Progress", closedOn: null }));
 
-    await updateIncidentById("incident-1", { status: "In Progress" });
+    await updateIncidentById("incident-1", { status: "In Progress" }, "u1", "User One");
 
     expect(updateIncidentByIdRepo).toHaveBeenCalledWith(
       "incident-1",
@@ -152,6 +179,7 @@ describe("incident.service", () => {
   });
 
   it("throws when incident not found", async () => {
+    vi.mocked(findIncidentById).mockResolvedValue(null);
     vi.mocked(updateIncidentByIdRepo).mockResolvedValue(null);
 
     await expect(updateIncidentById("incident-1", { severity: "High" })).rejects.toThrow("Incident not found");
@@ -234,13 +262,23 @@ describe("incident.service — createIncident failure path", () => {
       resolvedOn: null,
       closedOn: null,
       comment: null,
+      sla: {
+        startedAt: new Date("2026-01-01T00:00:00.000Z"),
+        responseDueAt: new Date("2026-01-01T00:15:00.000Z"),
+        resolutionDueAt: new Date("2026-01-01T04:00:00.000Z"),
+        acknowledgedAt: null,
+        state: "Running",
+        stoppedAt: null,
+        breachedResponse: false,
+        breachedResolution: false,
+      },
       createdAt: new Date("2026-01-01T00:00:00.000Z"),
       updatedAt: new Date("2026-01-01T00:00:00.000Z"),
     });
     vi.mocked(findIncidentById).mockResolvedValue(null);
 
     await expect(
-      createIncident({ teamId: 3, title: "Test", description: "Test", severity: "Low", assignedBy: "u2", assignedTo: "u3" }, "u1")
+      createIncident({ teamId: 3, title: "Test", description: "Test", severity: "Low", status: "Open", assignedBy: "u2", assignedTo: "u3" }, "u1")
     ).rejects.toThrow("Failed to create incident");
   });
 });
