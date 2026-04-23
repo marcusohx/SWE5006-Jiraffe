@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { createTeamSchema, updateTeamSchema } from "@/modules/team/team.dto";
+import {
+  createTeamSchema,
+  updateTeamSchema,
+  parseCreateTeam,
+  parseUpdateTeam,
+  parseTeamId,
+} from "@/modules/team/team.dto";
 
 describe("createTeamSchema", () => {
   it("accepts valid name", () => {
@@ -85,5 +91,51 @@ describe("updateTeamSchema", () => {
   it("accepts null description", () => {
     const result = updateTeamSchema.safeParse({ description: null });
     expect(result.success).toBe(true);
+  });
+});
+
+describe("parseCreateTeam", () => {
+  it("returns parsed input for valid data", () => {
+    const result = parseCreateTeam({ name: "Engineering" });
+    expect(result.name).toBe("Engineering");
+    expect(result.memberIds).toEqual([]);
+  });
+
+  it("throws for missing name", () => {
+    expect(() => parseCreateTeam({})).toThrow();
+  });
+
+  it("throws for empty name", () => {
+    expect(() => parseCreateTeam({ name: "" })).toThrow();
+  });
+});
+
+describe("parseUpdateTeam", () => {
+  it("returns parsed input for valid data", () => {
+    const result = parseUpdateTeam({ name: "New Name", isActive: false });
+    expect(result.name).toBe("New Name");
+  });
+
+  it("returns empty object for empty input (all fields optional)", () => {
+    const result = parseUpdateTeam({});
+    expect(result).toEqual({});
+  });
+
+  it("throws for invalid data", () => {
+    expect(() => parseUpdateTeam({ name: "" })).toThrow();
+  });
+});
+
+describe("parseTeamId", () => {
+  it("returns the id string for valid input", () => {
+    expect(parseTeamId("team-123")).toBe("team-123");
+  });
+
+  it("throws for empty string", () => {
+    expect(() => parseTeamId("")).toThrow();
+  });
+
+  it("throws for non-string", () => {
+    expect(() => parseTeamId(null)).toThrow();
   });
 });
