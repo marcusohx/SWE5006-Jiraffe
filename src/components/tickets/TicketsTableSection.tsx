@@ -26,6 +26,16 @@ function matchesSearchQuery(incident: IncidentWithNames, q: string): boolean {
   );
 }
 
+function matchesDateRange(updatedDate: Date, fromDate: Date | null, toDate: Date | null): boolean {
+  if (fromDate && updatedDate < fromDate) return false;
+  if (toDate && updatedDate > toDate) return false;
+  return true;
+}
+
+function matchesListFilter<T>(values: T[], value: T): boolean {
+  return values.length === 0 || values.includes(value);
+}
+
 function filterIncidents(
   incidents: IncidentWithNames[],
   searchQuery: string,
@@ -39,13 +49,10 @@ function filterIncidents(
   const toDate = updatedTo ? new Date(`${updatedTo}T23:59:59.999`) : null;
 
   return incidents.filter((incident) => {
-    const updatedDate = new Date(incident.updatedAt);
     if (q && !matchesSearchQuery(incident, q)) return false;
-    if (statusFilter.length > 0 && !statusFilter.includes(incident.status)) return false;
-    if (severityFilter.length > 0 && !severityFilter.includes(incident.severity)) return false;
-    if (fromDate && updatedDate < fromDate) return false;
-    if (toDate && updatedDate > toDate) return false;
-    return true;
+    if (!matchesListFilter(statusFilter, incident.status)) return false;
+    if (!matchesListFilter(severityFilter, incident.severity)) return false;
+    return matchesDateRange(new Date(incident.updatedAt), fromDate, toDate);
   });
 }
 

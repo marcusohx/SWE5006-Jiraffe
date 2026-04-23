@@ -10,159 +10,196 @@ import type { IncidentSeverity, IncidentStatus, IncidentWithNames } from "@/modu
 import type { ApiError, ApiSuccess } from "@/types/api";
 import type { TeamOptionWithMembers, UserOption } from "@/types/domain";
 
-function useIncidentMetadata(incident: IncidentWithNames) {
-  const [status, setStatus] = useState<IncidentStatus>(incident.status);
-  const [severity, setSeverity] = useState<IncidentSeverity>(incident.severity);
-  const [assignedToId, setAssignedToId] = useState(incident.assignedTo);
-  const [assignedById, setAssignedById] = useState(incident.assignedBy);
-  const [assignedToName, setAssignedToName] = useState(incident.assignedToName);
-  const [assignedByName, setAssignedByName] = useState(incident.assignedByName);
-  const [closedOn, setClosedOn] = useState<string | null>(
-    incident.closedOn ? new Date(incident.closedOn).toISOString() : null
+type FieldName = "status" | "severity" | "assignedTo" | "assignedBy";
+type IncidentUpdates = Partial<{
+  status: IncidentStatus;
+  severity: IncidentSeverity;
+  assignedTo: string;
+  assignedBy: string;
+}>;
+
+async function fetchTeams(signal: AbortSignal): Promise<TeamOptionWithMembers[]> {
+  const response = await fetch("/api/teams", { method: "GET", signal });
+  const payload = (await response.json()) as ApiSuccess<TeamOptionWithMembers[]> | ApiError;
+  if (!response.ok || !payload.success) {
+    throw new Error(payload.success ? "Unable to load teams." : payload.error);
+  }
+  return payload.data;
+}
+
+async function updateIncidentRequest(incidentId: string, updates: IncidentUpdates): Promise<void> {
+  const response = await fetch(`/api/incidents/${incidentId}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(updates),
+  });
+  const payload = (await response.json()) as ApiSuccess<unknown> | ApiError;
+  if (!response.ok || !payload.success) {
+    throw new Error(payload.success ? "Unable to update ticket metadata." : payload.error);
+  }
+}
+
+function buildTeamUsers(teams: TeamOptionWithMembers[], teamId: number | null | undefined): UserOption[] {
+  if (!teamId) return [];
+  const team = teams.find((t) => t.teamId === teamId);
+  if (!team) return [];
+  const unique = new Map<string, UserOption>();
+  team.members.forEach((member) => {
+    if (!unique.has(member.userId)) {
+      unique.set(member.userId, { id: member.userId, name: member.name, email: member.email });
+    }
+  });
+  return Array.from(unique.values()).sort((a, b) =>
+    capitalizeName(a.name).localeCompare(capitalizeName(b.name))
   );
+}
+
+function useTeams() {
   const [teams, setTeams] = useState<TeamOptionWithMembers[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [updatingField, setUpdatingField] = useState<
-    "status" | "severity" | "assignedTo" | "assignedBy" | null
-  >(null);
 
   useEffect(() => {
     const controller = new AbortController();
-
-    async function loadTeams() {
-      setLoadingUsers(true);
-      try {
-        const response = await fetch("/api/teams", { method: "GET", signal: controller.signal });
-        const payload = (await response.json()) as ApiSuccess<TeamOptionWithMembers[]> | ApiError;
-        if (!response.ok || !payload.success) {
-          throw new Error(payload.success ? "Unable to load teams." : payload.error);
-        }
-        setTeams(payload.data);
-      } catch (e) {
-        if (e instanceof Error && e.name !== "AbortError") {
-          setError(e.message);
-        }
-      } finally {
-        setLoadingUsers(false);
-      }
-    }
-
-    loadTeams();
+    fetchTeams(controller.signal)
+      .then(setTeams)
+      .catch((e: unknown) => {
+        if (e instanceof Error && e.name !== "AbortError") setError(e.message);
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoadingUsers(false);
+      });
     return () => controller.abort();
   }, []);
 
-  const users = useMemo(() => {
-    const teamId = incident.teamId;
-    if (!teamId) return [];
-    const team = teams.find((t) => t.teamId === teamId);
-    if (!team) return [];
-    const uniqueUsers = new Map<string, UserOption>();
-    team.members.forEach((member) => {
-      if (!uniqueUsers.has(member.userId)) {
-        uniqueUsers.set(member.userId, { id: member.userId, name: member.name, email: member.email });
-      }
-    });
-    return Array.from(uniqueUsers.values()).sort((a, b) =>
-      capitalizeName(a.name).localeCompare(capitalizeName(b.name))
-    );
-  }, [teams, incident.teamId]);
+  return { teams, loadingUsers, error, setError };
+}
 
-  const updateIncident = async (
-    updates: Partial<{ status: IncidentStatus; severity: IncidentSeverity; assignedTo: string; assignedBy: string }>
-  ) => {
-    const response = await fetch(`/api/incidents/${incident.id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(updates),
-    });
-    const payload = (await response.json()) as ApiSuccess<unknown> | ApiError;
-    if (!response.ok || !payload.success) {
-      throw new Error(payload.success ? "Unable to update ticket metadata." : payload.error);
-    }
-  };
+type OptimisticArgs = {
+  field: FieldName;
+  apply: () => void;
+  rollback: () => void;
+  updates: IncidentUpdates;
+  errorMsg: string;
+};
 
-  const applyOptimisticUpdate = async (
-    field: "status" | "severity" | "assignedTo" | "assignedBy",
-    applyFn: () => void,
-    rollbackFn: () => void,
-    apiUpdateFn: () => Promise<void>,
-    errorMsg: string
-  ) => {
+function useOptimisticIncidentUpdate(incidentId: string, onError: (msg: string) => void) {
+  const [updatingField, setUpdatingField] = useState<FieldName | null>(null);
+
+  const run = async ({ field, apply, rollback, updates, errorMsg }: OptimisticArgs) => {
     if (updatingField) return;
-    setError(null);
     setUpdatingField(field);
-    applyFn();
+    apply();
     try {
-      await apiUpdateFn();
-    } catch (e) {
-      rollbackFn();
-      setError(e instanceof Error ? e.message : errorMsg);
+      await updateIncidentRequest(incidentId, updates);
+    } catch (e: unknown) {
+      rollback();
+      onError(e instanceof Error ? e.message : errorMsg);
     } finally {
       setUpdatingField(null);
     }
   };
 
+  return { updatingField, run };
+}
+
+function useStatusField(incident: IncidentWithNames, run: (args: OptimisticArgs) => void) {
+  const [status, setStatus] = useState<IncidentStatus>(incident.status);
+  const [closedOn, setClosedOn] = useState<string | null>(
+    incident.closedOn ? new Date(incident.closedOn).toISOString() : null
+  );
+
   const onStatusChange = (nextStatus: IncidentStatus) => {
     if (nextStatus === status) return;
     const prevStatus = status;
     const prevClosedOn = closedOn;
-    applyOptimisticUpdate(
-      "status",
-      () => { setStatus(nextStatus); setClosedOn(nextStatus === "Closed" ? new Date().toISOString() : null); },
-      () => { setStatus(prevStatus); setClosedOn(prevClosedOn); },
-      () => updateIncident({ status: nextStatus }),
-      "Unable to update status."
-    );
+    const nextClosedOn = nextStatus === "Closed" ? new Date().toISOString() : null;
+    run({
+      field: "status",
+      apply: () => { setStatus(nextStatus); setClosedOn(nextClosedOn); },
+      rollback: () => { setStatus(prevStatus); setClosedOn(prevClosedOn); },
+      updates: { status: nextStatus },
+      errorMsg: "Unable to update status.",
+    });
   };
+
+  return { status, closedOn, onStatusChange };
+}
+
+function useSeverityField(incident: IncidentWithNames, run: (args: OptimisticArgs) => void) {
+  const [severity, setSeverity] = useState<IncidentSeverity>(incident.severity);
 
   const onSeverityChange = (nextSeverity: IncidentSeverity) => {
     if (nextSeverity === severity) return;
     const prevSeverity = severity;
-    applyOptimisticUpdate(
-      "severity",
-      () => setSeverity(nextSeverity),
-      () => setSeverity(prevSeverity),
-      () => updateIncident({ severity: nextSeverity }),
-      "Unable to update severity."
-    );
+    run({
+      field: "severity",
+      apply: () => setSeverity(nextSeverity),
+      rollback: () => setSeverity(prevSeverity),
+      updates: { severity: nextSeverity },
+      errorMsg: "Unable to update severity.",
+    });
   };
 
-  const onAssigneeChange = (nextUserId: string) => {
-    if (nextUserId === assignedToId) return;
+  return { severity, onSeverityChange };
+}
+
+function useUserAssignment(
+  field: "assignedTo" | "assignedBy",
+  initialId: string,
+  initialName: string,
+  errorMsg: string,
+  users: UserOption[],
+  run: (args: OptimisticArgs) => void
+) {
+  const [userId, setUserId] = useState(initialId);
+  const [userName, setUserName] = useState(initialName);
+
+  const onChange = (nextUserId: string) => {
+    if (nextUserId === userId) return;
     const user = users.find((u) => u.id === nextUserId);
     if (!user) return;
-    const prevId = assignedToId;
-    const prevName = assignedToName;
-    applyOptimisticUpdate(
-      "assignedTo",
-      () => { setAssignedToId(user.id); setAssignedToName(capitalizeName(user.name)); },
-      () => { setAssignedToId(prevId); setAssignedToName(prevName); },
-      () => updateIncident({ assignedTo: user.id }),
-      "Unable to update assignee."
-    );
+    const prevId = userId;
+    const prevName = userName;
+    const nextName = capitalizeName(user.name);
+    run({
+      field,
+      apply: () => { setUserId(user.id); setUserName(nextName); },
+      rollback: () => { setUserId(prevId); setUserName(prevName); },
+      updates: { [field]: user.id },
+      errorMsg,
+    });
   };
 
-  const onAssignedByChange = (nextUserId: string) => {
-    if (nextUserId === assignedById) return;
-    const user = users.find((u) => u.id === nextUserId);
-    if (!user) return;
-    const prevId = assignedById;
-    const prevName = assignedByName;
-    applyOptimisticUpdate(
-      "assignedBy",
-      () => { setAssignedById(user.id); setAssignedByName(capitalizeName(user.name)); },
-      () => { setAssignedById(prevId); setAssignedByName(prevName); },
-      () => updateIncident({ assignedBy: user.id }),
-      "Unable to update assigned by."
-    );
-  };
+  return { userId, userName, onChange };
+}
+
+function useIncidentMetadata(incident: IncidentWithNames) {
+  const { teams, loadingUsers, error: teamsError, setError: setTeamsError } = useTeams();
+  const users = useMemo(() => buildTeamUsers(teams, incident.teamId), [teams, incident.teamId]);
+
+  const onOperationError = (msg: string) => setTeamsError(msg);
+  const { updatingField, run } = useOptimisticIncidentUpdate(incident.id, onOperationError);
+
+  const { status, closedOn, onStatusChange } = useStatusField(incident, run);
+  const { severity, onSeverityChange } = useSeverityField(incident, run);
+  const assignee = useUserAssignment(
+    "assignedTo", incident.assignedTo, incident.assignedToName,
+    "Unable to update assignee.", users, run
+  );
+  const assignedBy = useUserAssignment(
+    "assignedBy", incident.assignedBy, incident.assignedByName,
+    "Unable to update assigned by.", users, run
+  );
 
   return {
-    status, severity, assignedToId, assignedById,
-    assignedToName, assignedByName, closedOn,
-    users, loadingUsers, error, updatingField,
-    onStatusChange, onSeverityChange, onAssigneeChange, onAssignedByChange,
+    status, severity, closedOn,
+    assignedToId: assignee.userId, assignedToName: assignee.userName,
+    assignedById: assignedBy.userId, assignedByName: assignedBy.userName,
+    users, loadingUsers, error: teamsError, updatingField,
+    onStatusChange, onSeverityChange,
+    onAssigneeChange: assignee.onChange,
+    onAssignedByChange: assignedBy.onChange,
   };
 }
 
