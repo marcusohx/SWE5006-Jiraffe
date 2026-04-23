@@ -10,6 +10,32 @@ import {
   updateIncidentById as updateIncidentByIdRepo,
 } from "@/modules/incident/incident.repository";
 
+function toOptionalDate(value: string | null | undefined): Date | null | undefined {
+  if (value === undefined) return undefined;
+  if (value === null) return null;
+  return new Date(value);
+}
+
+function logIncidentUpdateActivity(
+  incident: IncidentWithNames,
+  input: UpdateIncidentInput,
+  actorId: string,
+  actorName: string
+): void {
+  const label = formatIncidentCode(incident.incidentId);
+  const base = { actorId, actorName, entityType: "incident" as const, entityId: incident.id, entityLabel: label, teamId: incident.teamId };
+
+  if (input.status !== undefined) {
+    logActivity({ ...base, activityType: "incident_status_changed", description: `${actorName} moved ${label} to ${input.status}`, metadata: { newStatus: input.status } });
+  } else if (input.severity !== undefined) {
+    logActivity({ ...base, activityType: "incident_severity_changed", description: `${actorName} changed ${label} severity to ${input.severity}`, metadata: { newSeverity: input.severity } });
+  } else if (input.assignedTo !== undefined) {
+    logActivity({ ...base, activityType: "incident_assigned", description: `${actorName} assigned ${label} to ${incident.assignedToName}`, metadata: { assignedTo: input.assignedTo } });
+  } else {
+    logActivity({ ...base, activityType: "incident_updated", description: `${actorName} updated ${label}`, metadata: { fields: Object.keys(input) } });
+  }
+}
+
 export async function listIncidents(): Promise<IncidentWithNames[]> {
   return listIncidentsRepo();
 }
@@ -82,18 +108,8 @@ export async function updateIncidentById(
 
   const repositoryUpdates: UpdateIncidentRepositoryInput = {
     ...updates,
-    resolvedOn:
-      updates.resolvedOn !== undefined
-        ? updates.resolvedOn === null
-          ? null
-          : new Date(updates.resolvedOn)
-        : undefined,
-    closedOn:
-      updates.closedOn !== undefined
-        ? updates.closedOn === null
-          ? null
-          : new Date(updates.closedOn)
-        : undefined,
+    resolvedOn: toOptionalDate(updates.resolvedOn),
+    closedOn: toOptionalDate(updates.closedOn),
   };
 
   const incident = await updateIncidentByIdRepo(id, repositoryUpdates);
@@ -102,57 +118,7 @@ export async function updateIncidentById(
   }
 
   if (actorId && actorName) {
-    const label = formatIncidentCode(incident.incidentId);
-
-    if (input.status !== undefined) {
-      logActivity({
-        actorId,
-        actorName,
-        activityType: "incident_status_changed",
-        entityType: "incident",
-        entityId: incident.id,
-        entityLabel: label,
-        teamId: incident.teamId,
-        description: `${actorName} moved ${label} to ${input.status}`,
-        metadata: { newStatus: input.status },
-      });
-    } else if (input.severity !== undefined) {
-      logActivity({
-        actorId,
-        actorName,
-        activityType: "incident_severity_changed",
-        entityType: "incident",
-        entityId: incident.id,
-        entityLabel: label,
-        teamId: incident.teamId,
-        description: `${actorName} changed ${label} severity to ${input.severity}`,
-        metadata: { newSeverity: input.severity },
-      });
-    } else if (input.assignedTo !== undefined) {
-      logActivity({
-        actorId,
-        actorName,
-        activityType: "incident_assigned",
-        entityType: "incident",
-        entityId: incident.id,
-        entityLabel: label,
-        teamId: incident.teamId,
-        description: `${actorName} assigned ${label} to ${incident.assignedToName}`,
-        metadata: { assignedTo: input.assignedTo },
-      });
-    } else {
-      logActivity({
-        actorId,
-        actorName,
-        activityType: "incident_updated",
-        entityType: "incident",
-        entityId: incident.id,
-        entityLabel: label,
-        teamId: incident.teamId,
-        description: `${actorName} updated ${label}`,
-        metadata: { fields: Object.keys(input) },
-      });
-    }
+    logIncidentUpdateActivity(incident, input, actorId, actorName);
   }
 
   return incident;

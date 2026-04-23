@@ -10,7 +10,7 @@ import type { IncidentSeverity, IncidentStatus, IncidentWithNames } from "@/modu
 import type { ApiError, ApiSuccess } from "@/types/api";
 import type { TeamOptionWithMembers, UserOption } from "@/types/domain";
 
-export function TicketMetadata({ incident }: { incident: IncidentWithNames }) {
+function useIncidentMetadata(incident: IncidentWithNames) {
   const [status, setStatus] = useState<IncidentStatus>(incident.status);
   const [severity, setSeverity] = useState<IncidentSeverity>(incident.severity);
   const [assignedToId, setAssignedToId] = useState(incident.assignedTo);
@@ -23,9 +23,9 @@ export function TicketMetadata({ incident }: { incident: IncidentWithNames }) {
   const [teams, setTeams] = useState<TeamOptionWithMembers[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [updatingField, setUpdatingField] = useState<"status" | "severity" | "assignedTo" | "assignedBy" | null>(
-    null
-  );
+  const [updatingField, setUpdatingField] = useState<
+    "status" | "severity" | "assignedTo" | "assignedBy" | null
+  >(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -53,7 +53,6 @@ export function TicketMetadata({ incident }: { incident: IncidentWithNames }) {
     };
 
     loadTeams();
-
     return () => {
       isMounted = false;
     };
@@ -61,48 +60,28 @@ export function TicketMetadata({ incident }: { incident: IncidentWithNames }) {
 
   const users = useMemo(() => {
     const teamId = incident.teamId;
-    if (!teamId) {
-      return [];
-    }
-
-    // Find the team that this incident belongs to
+    if (!teamId) return [];
     const team = teams.find((t) => t.teamId === teamId);
-    if (!team) {
-      return [];
-    }
-
-    // Extract unique users from team members
+    if (!team) return [];
     const uniqueUsers = new Map<string, UserOption>();
     team.members.forEach((member) => {
       if (!uniqueUsers.has(member.userId)) {
-        uniqueUsers.set(member.userId, {
-          id: member.userId,
-          name: member.name,
-          email: member.email,
-        });
+        uniqueUsers.set(member.userId, { id: member.userId, name: member.name, email: member.email });
       }
     });
-
-    // Return sorted array of users
     return Array.from(uniqueUsers.values()).sort((a, b) =>
       capitalizeName(a.name).localeCompare(capitalizeName(b.name))
     );
   }, [teams, incident.teamId]);
 
   const updateIncident = async (
-    updates: Partial<{
-      status: IncidentStatus;
-      severity: IncidentSeverity;
-      assignedTo: string;
-      assignedBy: string;
-    }>
+    updates: Partial<{ status: IncidentStatus; severity: IncidentSeverity; assignedTo: string; assignedBy: string }>
   ) => {
     const response = await fetch(`/api/incidents/${incident.id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(updates),
     });
-
     const payload = (await response.json()) as ApiSuccess<unknown> | ApiError;
     if (!response.ok || !payload.success) {
       throw new Error(payload.success ? "Unable to update ticket metadata." : payload.error);
@@ -110,22 +89,13 @@ export function TicketMetadata({ incident }: { incident: IncidentWithNames }) {
   };
 
   const onStatusChange = async (nextStatus: IncidentStatus) => {
-    if (nextStatus === status || updatingField) {
-      return;
-    }
-
+    if (nextStatus === status || updatingField) return;
     const prevStatus = status;
     const prevClosedOn = closedOn;
-
     setError(null);
     setUpdatingField("status");
     setStatus(nextStatus);
-    if (nextStatus === "Closed") {
-      setClosedOn(new Date().toISOString());
-    } else {
-      setClosedOn(null);
-    }
-
+    setClosedOn(nextStatus === "Closed" ? new Date().toISOString() : null);
     try {
       await updateIncident({ status: nextStatus });
     } catch (e) {
@@ -138,16 +108,11 @@ export function TicketMetadata({ incident }: { incident: IncidentWithNames }) {
   };
 
   const onSeverityChange = async (nextSeverity: IncidentSeverity) => {
-    if (nextSeverity === severity || updatingField) {
-      return;
-    }
-
+    if (nextSeverity === severity || updatingField) return;
     const prevSeverity = severity;
-
     setError(null);
     setUpdatingField("severity");
     setSeverity(nextSeverity);
-
     try {
       await updateIncident({ severity: nextSeverity });
     } catch (e) {
@@ -159,23 +124,15 @@ export function TicketMetadata({ incident }: { incident: IncidentWithNames }) {
   };
 
   const onAssigneeChange = async (nextUserId: string) => {
-    if (nextUserId === assignedToId || updatingField) {
-      return;
-    }
-
+    if (nextUserId === assignedToId || updatingField) return;
     const user = users.find((u) => u.id === nextUserId);
-    if (!user) {
-      return;
-    }
-
+    if (!user) return;
     const prevId = assignedToId;
     const prevName = assignedToName;
-
     setError(null);
     setUpdatingField("assignedTo");
     setAssignedToId(user.id);
     setAssignedToName(capitalizeName(user.name));
-
     try {
       await updateIncident({ assignedTo: user.id });
     } catch (e) {
@@ -188,23 +145,15 @@ export function TicketMetadata({ incident }: { incident: IncidentWithNames }) {
   };
 
   const onAssignedByChange = async (nextUserId: string) => {
-    if (nextUserId === assignedById || updatingField) {
-      return;
-    }
-
+    if (nextUserId === assignedById || updatingField) return;
     const user = users.find((u) => u.id === nextUserId);
-    if (!user) {
-      return;
-    }
-
+    if (!user) return;
     const prevId = assignedById;
     const prevName = assignedByName;
-
     setError(null);
     setUpdatingField("assignedBy");
     setAssignedById(user.id);
     setAssignedByName(capitalizeName(user.name));
-
     try {
       await updateIncident({ assignedBy: user.id });
     } catch (e) {
@@ -215,6 +164,22 @@ export function TicketMetadata({ incident }: { incident: IncidentWithNames }) {
       setUpdatingField(null);
     }
   };
+
+  return {
+    status, severity, assignedToId, assignedById,
+    assignedToName, assignedByName, closedOn,
+    users, loadingUsers, error, updatingField,
+    onStatusChange, onSeverityChange, onAssigneeChange, onAssignedByChange,
+  };
+}
+
+export function TicketMetadata({ incident }: { incident: IncidentWithNames }) {
+  const {
+    status, severity, assignedToId, assignedById,
+    assignedToName, assignedByName, closedOn,
+    users, loadingUsers, error, updatingField,
+    onStatusChange, onSeverityChange, onAssigneeChange, onAssignedByChange,
+  } = useIncidentMetadata(incident);
 
   return (
     <Card>

@@ -5,6 +5,7 @@ import {
   type ReactNode,
   useContext,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -44,8 +45,10 @@ export function Dropdown({
     return () => document.removeEventListener("mousedown", onMouseDown);
   }, [open]);
 
+  const contextValue = useMemo(() => ({ close: () => setOpen(false) }), [setOpen]);
+
   return (
-    <DropdownContext.Provider value={{ close: () => setOpen(false) }}>
+    <DropdownContext.Provider value={contextValue}>
       <div className="relative inline-block" ref={rootRef}>
         <button
           type="button"

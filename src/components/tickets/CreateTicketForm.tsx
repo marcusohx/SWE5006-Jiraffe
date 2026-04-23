@@ -13,6 +13,82 @@ import type { IncidentSeverity } from "@/modules/incident/incident.model";
 import type { ApiError, ApiSuccess } from "@/types/api";
 import type { TeamOptionWithMembers, UserOption } from "@/types/domain";
 
+function useLoadTeams() {
+  const [teams, setTeams] = useState<TeamOptionWithMembers[]>([]);
+  const [loadingTeams, setLoadingTeams] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const load = async () => {
+      setLoadingTeams(true);
+      try {
+        const response = await fetch("/api/teams", { method: "GET" });
+        const payload = (await response.json()) as ApiSuccess<TeamOptionWithMembers[]> | ApiError;
+        if (!response.ok || !payload.success) {
+          throw new Error(payload.success ? "Unable to load teams." : payload.error);
+        }
+        if (isMounted) {
+          setTeams(payload.data);
+        }
+      } catch (e) {
+        if (isMounted) {
+          setLoadError(e instanceof Error ? e.message : "Unable to load teams.");
+        }
+      } finally {
+        if (isMounted) {
+          setLoadingTeams(false);
+        }
+      }
+    };
+
+    load();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  return { teams, loadingTeams, loadError };
+}
+
+function AssigneeDropdownContent({
+  selectedTeamId,
+  loadingTeams,
+  users,
+  assignedToId,
+  onSelect,
+}: {
+  selectedTeamId: number | null;
+  loadingTeams: boolean;
+  users: UserOption[];
+  assignedToId: string | undefined;
+  onSelect: (user: UserOption) => void;
+}) {
+  if (selectedTeamId === null) {
+    return <DropdownItem disabled>Select a team from Ticket Pipeline first</DropdownItem>;
+  }
+  if (loadingTeams) {
+    return <DropdownItem disabled>Loading team members...</DropdownItem>;
+  }
+  if (users.length === 0) {
+    return <DropdownItem disabled>No members found in this team</DropdownItem>;
+  }
+  return (
+    <>
+      {users.map((user) => (
+        <DropdownItem
+          key={user.id}
+          selected={user.id === assignedToId}
+          onClick={() => onSelect(user)}
+        >
+          {capitalizeName(user.name)}
+        </DropdownItem>
+      ))}
+    </>
+  );
+}
+
 export function CreateTicketForm({
   onSuccess,
   selectedTeamId,
@@ -27,43 +103,9 @@ export function CreateTicketForm({
   const [assignedTo, setAssignedTo] = useState<UserOption | null>(null);
   const [comment, setComment] = useState("");
 
-  const [teams, setTeams] = useState<TeamOptionWithMembers[]>([]);
-  const [loadingTeams, setLoadingTeams] = useState(true);
+  const { teams, loadingTeams, loadError } = useLoadTeams();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    let isMounted = true;
-
-    const loadTeams = async () => {
-      setLoadingTeams(true);
-      try {
-        const response = await fetch("/api/teams", { method: "GET" });
-        const payload = (await response.json()) as ApiSuccess<TeamOptionWithMembers[]> | ApiError;
-        if (!response.ok || !payload.success) {
-          throw new Error(payload.success ? "Unable to load teams." : payload.error);
-        }
-
-        if (isMounted) {
-          setTeams(payload.data);
-        }
-      } catch (e) {
-        if (isMounted) {
-          setError(e instanceof Error ? e.message : "Unable to load teams.");
-        }
-      } finally {
-        if (isMounted) {
-          setLoadingTeams(false);
-        }
-      }
-    };
-
-    loadTeams();
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const users = useMemo(() => {
     if (selectedTeamId === null) {
@@ -117,7 +159,7 @@ export function CreateTicketForm({
     }
 
     setIsSubmitting(true);
-    setError(null);
+    setSubmitError(null);
 
     try {
       const response = await fetch("/api/incidents", {
@@ -142,7 +184,7 @@ export function CreateTicketForm({
 
       onSuccess();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Unable to create ticket.");
+      setSubmitError(e instanceof Error ? e.message : "Unable to create ticket.");
     } finally {
       setIsSubmitting(false);
     }
@@ -206,23 +248,13 @@ export function CreateTicketForm({
                 </div>
               }
             >
-              {selectedTeamId === null ? (
-                <DropdownItem disabled>Select a team from Ticket Pipeline first</DropdownItem>
-              ) : loadingTeams ? (
-                <DropdownItem disabled>Loading team members...</DropdownItem>
-              ) : users.length === 0 ? (
-                <DropdownItem disabled>No members found in this team</DropdownItem>
-              ) : (
-                users.map((user) => (
-                  <DropdownItem
-                    key={user.id}
-                    selected={user.id === assignedTo?.id}
-                    onClick={() => setAssignedTo(user)}
-                  >
-                    {capitalizeName(user.name)}
-                  </DropdownItem>
-                ))
-              )}
+              <AssigneeDropdownContent
+                selectedTeamId={selectedTeamId}
+                loadingTeams={loadingTeams}
+                users={users}
+                assignedToId={assignedTo?.id}
+                onSelect={setAssignedTo}
+              />
             </Dropdown>
           </div>
         </div>
@@ -238,7 +270,9 @@ export function CreateTicketForm({
         />
       </label>
 
-      {error ? <p className="text-sm text-red-600">{error}</p> : null}
+      {(submitError || loadError) ? (
+        <p className="text-sm text-red-600">{submitError ?? loadError}</p>
+      ) : null}
 
       <div className="flex justify-end">
         <Button type="submit" disabled={!canSubmit}>

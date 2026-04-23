@@ -3,7 +3,7 @@ import mongoose from "mongoose";
 import { env } from "@/lib/config";
 
 declare global {
-  var _mongooseConnection: Promise<typeof mongoose> | undefined;
+  var _mongooseConnection: Promise<typeof mongoose> | undefined; // NOSONAR
 }
 
 const dnsServers = process.env.DNS_SERVERS?.split(",").map((server) =>

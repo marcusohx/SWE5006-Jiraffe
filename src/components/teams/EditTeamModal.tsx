@@ -26,14 +26,7 @@ type TeamPayload = {
   isActive: boolean;
 };
 
-export function EditTeamModal() {
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-
-  const editId = searchParams.get("edit");
-  const open = Boolean(editId);
-
+function useLoadTeam(editId: string | null, open: boolean) {
   const [team, setTeam] = useState<TeamResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -70,11 +63,23 @@ export function EditTeamModal() {
     };
 
     loadTeam();
-
     return () => {
       isMounted = false;
     };
   }, [open, editId]);
+
+  return { team, loading, error };
+}
+
+export function EditTeamModal() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  const editId = searchParams.get("edit");
+  const open = Boolean(editId);
+
+  const { team, loading, error } = useLoadTeam(editId, open);
 
   const close = () => {
     const params = new URLSearchParams(searchParams.toString());
