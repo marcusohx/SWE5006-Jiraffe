@@ -28,34 +28,28 @@ function useIncidentMetadata(incident: IncidentWithNames) {
   >(null);
 
   useEffect(() => {
-    let isMounted = true;
+    const controller = new AbortController();
 
-    const loadTeams = async () => {
+    async function loadTeams() {
       setLoadingUsers(true);
       try {
-        const response = await fetch("/api/teams", { method: "GET" });
+        const response = await fetch("/api/teams", { method: "GET", signal: controller.signal });
         const payload = (await response.json()) as ApiSuccess<TeamOptionWithMembers[]> | ApiError;
         if (!response.ok || !payload.success) {
           throw new Error(payload.success ? "Unable to load teams." : payload.error);
         }
-        if (isMounted) {
-          setTeams(payload.data);
-        }
+        setTeams(payload.data);
       } catch (e) {
-        if (isMounted) {
-          setError(e instanceof Error ? e.message : "Unable to load teams.");
+        if (e instanceof Error && e.name !== "AbortError") {
+          setError(e.message);
         }
       } finally {
-        if (isMounted) {
-          setLoadingUsers(false);
-        }
+        setLoadingUsers(false);
       }
-    };
+    }
 
     loadTeams();
-    return () => {
-      isMounted = false;
-    };
+    return () => controller.abort();
   }, []);
 
   const users = useMemo(() => {
@@ -88,81 +82,80 @@ function useIncidentMetadata(incident: IncidentWithNames) {
     }
   };
 
-  const onStatusChange = async (nextStatus: IncidentStatus) => {
-    if (nextStatus === status || updatingField) return;
+  const applyOptimisticUpdate = async (
+    field: "status" | "severity" | "assignedTo" | "assignedBy",
+    applyFn: () => void,
+    rollbackFn: () => void,
+    apiUpdateFn: () => Promise<void>,
+    errorMsg: string
+  ) => {
+    if (updatingField) return;
+    setError(null);
+    setUpdatingField(field);
+    applyFn();
+    try {
+      await apiUpdateFn();
+    } catch (e) {
+      rollbackFn();
+      setError(e instanceof Error ? e.message : errorMsg);
+    } finally {
+      setUpdatingField(null);
+    }
+  };
+
+  const onStatusChange = (nextStatus: IncidentStatus) => {
+    if (nextStatus === status) return;
     const prevStatus = status;
     const prevClosedOn = closedOn;
-    setError(null);
-    setUpdatingField("status");
-    setStatus(nextStatus);
-    setClosedOn(nextStatus === "Closed" ? new Date().toISOString() : null);
-    try {
-      await updateIncident({ status: nextStatus });
-    } catch (e) {
-      setStatus(prevStatus);
-      setClosedOn(prevClosedOn);
-      setError(e instanceof Error ? e.message : "Unable to update status.");
-    } finally {
-      setUpdatingField(null);
-    }
+    applyOptimisticUpdate(
+      "status",
+      () => { setStatus(nextStatus); setClosedOn(nextStatus === "Closed" ? new Date().toISOString() : null); },
+      () => { setStatus(prevStatus); setClosedOn(prevClosedOn); },
+      () => updateIncident({ status: nextStatus }),
+      "Unable to update status."
+    );
   };
 
-  const onSeverityChange = async (nextSeverity: IncidentSeverity) => {
-    if (nextSeverity === severity || updatingField) return;
+  const onSeverityChange = (nextSeverity: IncidentSeverity) => {
+    if (nextSeverity === severity) return;
     const prevSeverity = severity;
-    setError(null);
-    setUpdatingField("severity");
-    setSeverity(nextSeverity);
-    try {
-      await updateIncident({ severity: nextSeverity });
-    } catch (e) {
-      setSeverity(prevSeverity);
-      setError(e instanceof Error ? e.message : "Unable to update severity.");
-    } finally {
-      setUpdatingField(null);
-    }
+    applyOptimisticUpdate(
+      "severity",
+      () => setSeverity(nextSeverity),
+      () => setSeverity(prevSeverity),
+      () => updateIncident({ severity: nextSeverity }),
+      "Unable to update severity."
+    );
   };
 
-  const onAssigneeChange = async (nextUserId: string) => {
-    if (nextUserId === assignedToId || updatingField) return;
+  const onAssigneeChange = (nextUserId: string) => {
+    if (nextUserId === assignedToId) return;
     const user = users.find((u) => u.id === nextUserId);
     if (!user) return;
     const prevId = assignedToId;
     const prevName = assignedToName;
-    setError(null);
-    setUpdatingField("assignedTo");
-    setAssignedToId(user.id);
-    setAssignedToName(capitalizeName(user.name));
-    try {
-      await updateIncident({ assignedTo: user.id });
-    } catch (e) {
-      setAssignedToId(prevId);
-      setAssignedToName(prevName);
-      setError(e instanceof Error ? e.message : "Unable to update assignee.");
-    } finally {
-      setUpdatingField(null);
-    }
+    applyOptimisticUpdate(
+      "assignedTo",
+      () => { setAssignedToId(user.id); setAssignedToName(capitalizeName(user.name)); },
+      () => { setAssignedToId(prevId); setAssignedToName(prevName); },
+      () => updateIncident({ assignedTo: user.id }),
+      "Unable to update assignee."
+    );
   };
 
-  const onAssignedByChange = async (nextUserId: string) => {
-    if (nextUserId === assignedById || updatingField) return;
+  const onAssignedByChange = (nextUserId: string) => {
+    if (nextUserId === assignedById) return;
     const user = users.find((u) => u.id === nextUserId);
     if (!user) return;
     const prevId = assignedById;
     const prevName = assignedByName;
-    setError(null);
-    setUpdatingField("assignedBy");
-    setAssignedById(user.id);
-    setAssignedByName(capitalizeName(user.name));
-    try {
-      await updateIncident({ assignedBy: user.id });
-    } catch (e) {
-      setAssignedById(prevId);
-      setAssignedByName(prevName);
-      setError(e instanceof Error ? e.message : "Unable to update assigned by.");
-    } finally {
-      setUpdatingField(null);
-    }
+    applyOptimisticUpdate(
+      "assignedBy",
+      () => { setAssignedById(user.id); setAssignedByName(capitalizeName(user.name)); },
+      () => { setAssignedById(prevId); setAssignedByName(prevName); },
+      () => updateIncident({ assignedBy: user.id }),
+      "Unable to update assigned by."
+    );
   };
 
   return {

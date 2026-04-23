@@ -29,34 +29,28 @@ function useLoadUsers() {
   const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
-    let isMounted = true;
+    const controller = new AbortController();
 
-    const load = async () => {
+    async function load() {
       setLoadingUsers(true);
       try {
-        const response = await fetch("/api/users", { method: "GET" });
+        const response = await fetch("/api/users", { method: "GET", signal: controller.signal });
         const payload = (await response.json()) as ApiSuccess<UserOption[]> | ApiError;
         if (!response.ok || !payload.success) {
           throw new Error(payload.success ? "Unable to load users." : payload.error);
         }
-        if (isMounted) {
-          setUsers(payload.data);
-        }
+        setUsers(payload.data);
       } catch (e) {
-        if (isMounted) {
-          setLoadError(e instanceof Error ? e.message : "Unable to load users.");
+        if (e instanceof Error && e.name !== "AbortError") {
+          setLoadError(e.message);
         }
       } finally {
-        if (isMounted) {
-          setLoadingUsers(false);
-        }
+        setLoadingUsers(false);
       }
-    };
+    }
 
     load();
-    return () => {
-      isMounted = false;
-    };
+    return () => controller.abort();
   }, []);
 
   return { users, loadingUsers, loadError };

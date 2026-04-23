@@ -14,6 +14,18 @@ import type { IncidentSeverity, IncidentStatus, IncidentWithNames } from "@/modu
 import type { ApiError, ApiSuccess } from "@/types/api";
 import type { TeamScopeOption } from "@/types/domain";
 
+function matchesSearchQuery(incident: IncidentWithNames, q: string): boolean {
+  return (
+    includesIgnoreCase(incident.title, q) ||
+    includesIgnoreCase(formatIncidentCode(incident.incidentId), q) ||
+    includesIgnoreCase(String(incident.incidentId), q) ||
+    includesIgnoreCase(incident.description, q) ||
+    includesIgnoreCase(incident.assignedToName, q) ||
+    includesIgnoreCase(incident.status, q) ||
+    includesIgnoreCase(incident.severity, q)
+  );
+}
+
 function filterIncidents(
   incidents: IncidentWithNames[],
   searchQuery: string,
@@ -28,24 +40,11 @@ function filterIncidents(
 
   return incidents.filter((incident) => {
     const updatedDate = new Date(incident.updatedAt);
-
-    if (q) {
-      const matchesSearch =
-        includesIgnoreCase(incident.title, q) ||
-        includesIgnoreCase(formatIncidentCode(incident.incidentId), q) ||
-        includesIgnoreCase(String(incident.incidentId), q) ||
-        includesIgnoreCase(incident.description, q) ||
-        includesIgnoreCase(incident.assignedToName, q) ||
-        includesIgnoreCase(incident.status, q) ||
-        includesIgnoreCase(incident.severity, q);
-      if (!matchesSearch) return false;
-    }
-
+    if (q && !matchesSearchQuery(incident, q)) return false;
     if (statusFilter.length > 0 && !statusFilter.includes(incident.status)) return false;
     if (severityFilter.length > 0 && !severityFilter.includes(incident.severity)) return false;
     if (fromDate && updatedDate < fromDate) return false;
     if (toDate && updatedDate > toDate) return false;
-
     return true;
   });
 }

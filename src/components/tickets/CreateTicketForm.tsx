@@ -19,34 +19,28 @@ function useLoadTeams() {
   const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
-    let isMounted = true;
+    const controller = new AbortController();
 
-    const load = async () => {
+    async function load() {
       setLoadingTeams(true);
       try {
-        const response = await fetch("/api/teams", { method: "GET" });
+        const response = await fetch("/api/teams", { method: "GET", signal: controller.signal });
         const payload = (await response.json()) as ApiSuccess<TeamOptionWithMembers[]> | ApiError;
         if (!response.ok || !payload.success) {
           throw new Error(payload.success ? "Unable to load teams." : payload.error);
         }
-        if (isMounted) {
-          setTeams(payload.data);
-        }
+        setTeams(payload.data);
       } catch (e) {
-        if (isMounted) {
-          setLoadError(e instanceof Error ? e.message : "Unable to load teams.");
+        if (e instanceof Error && e.name !== "AbortError") {
+          setLoadError(e.message);
         }
       } finally {
-        if (isMounted) {
-          setLoadingTeams(false);
-        }
+        setLoadingTeams(false);
       }
-    };
+    }
 
     load();
-    return () => {
-      isMounted = false;
-    };
+    return () => controller.abort();
   }, []);
 
   return { teams, loadingTeams, loadError };
