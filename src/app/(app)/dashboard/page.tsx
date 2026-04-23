@@ -10,6 +10,8 @@ import { listIncidents } from "@/modules/incident/incident.service";
 import { listTeams } from "@/modules/team/team.service";
 import { listRecentActivities } from "@/modules/activity/activity.service";
 
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) redirect("/login");
@@ -26,8 +28,8 @@ export default async function DashboardPage() {
   const activities = await listRecentActivities(teamIds, 3);
 
   const hasTeams = teamIds.length > 0;
+  // eslint-disable-next-line react-hooks/purity
   const now = Date.now();
-  const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
   // --- Open Tickets ---
   const currentOpen = hasTeams
