@@ -8,12 +8,12 @@ declare global {
 
 const dnsServers = process.env.DNS_SERVERS?.split(",").map((server) =>
   server.trim(),
-) ?? ["1.1.1.1", "1.0.0.1", "8.8.8.8"];
+);
 
 let dnsConfigured = false;
 
 function ensureDnsServers() {
-  if (dnsConfigured) {
+  if (dnsConfigured || !dnsServers?.length) {
     return;
   }
   try {

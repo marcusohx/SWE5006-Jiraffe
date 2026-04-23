@@ -99,7 +99,7 @@ function generateTeamCode(): string {
   const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
   let code = "";
   for (let i = 0; i < 6; i += 1) {
-    code += alphabet[Math.floor(Math.random() * alphabet.length)];
+    code += alphabet[crypto.randomInt(alphabet.length)];
   }
   return code;
 }
