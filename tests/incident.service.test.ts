@@ -344,6 +344,7 @@ describe("incident.service — updateIncidentById activity logging", () => {
   });
 
   it("logs incident_status_changed when status is updated", async () => {
+    vi.mocked(findIncidentById).mockResolvedValue(makeIncident({ assignedTo: "u1" }));
     vi.mocked(updateIncidentByIdRepo).mockResolvedValue(makeIncident({ status: "Closed" }));
 
     await updateIncidentById("incident-1", { status: "Closed" }, "u1", "Actor");
