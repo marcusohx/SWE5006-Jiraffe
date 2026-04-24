@@ -185,6 +185,22 @@ describe("incident.service", () => {
 
     await expect(updateIncidentById("incident-1", { severity: "High" })).rejects.toThrow("Incident not found");
   });
+
+  it("throws when a non-assignee tries to close a ticket", async () => {
+    vi.mocked(findIncidentById).mockResolvedValue(makeIncident({ assignedTo: "u3" }));
+
+    await expect(updateIncidentById("incident-1", { status: "Closed" }, "u1", "User One")).rejects.toThrow(
+      "Only the assigned user can close this ticket"
+    );
+  });
+
+  it("throws when a non-assignee tries to move a ticket to In Progress", async () => {
+    vi.mocked(findIncidentById).mockResolvedValue(makeIncident({ assignedTo: "u3" }));
+
+    await expect(
+      updateIncidentById("incident-1", { status: "In Progress" }, "u1", "User One")
+    ).rejects.toThrow("Only the assigned user can move this ticket to In Progress");
+  });
 });
 
 describe("incident.service — listIncidents", () => {
