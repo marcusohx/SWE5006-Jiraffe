@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { createIncident, deleteIncidentById, findIncidentById, updateIncidentById } from "@/modules/incident/incident.repository";
+import { createIncident, deleteIncidentById, findIncidentById, listIncidentInboxForUser, updateIncidentById } from "@/modules/incident/incident.repository";
 
 const {
   connectMongo,
@@ -13,6 +13,8 @@ const {
   incidentFindById,
   incidentFindByIdAndUpdate,
   incidentDeleteOne,
+  incidentFind,
+  userTeamFind,
 } = vi.hoisted(() => ({
   connectMongo: vi.fn(),
   startSession: vi.fn(),
@@ -25,6 +27,8 @@ const {
   incidentFindById: vi.fn(),
   incidentFindByIdAndUpdate: vi.fn(),
   incidentDeleteOne: vi.fn(),
+  incidentFind: vi.fn(),
+  userTeamFind: vi.fn(),
 }));
 
 vi.mock("@/lib/db/mongodb", () => ({
@@ -37,6 +41,7 @@ vi.mock("@/modules/team/team.model", () => ({
   },
   UserTeamModel: {
     countDocuments: userTeamCountDocuments,
+    find: userTeamFind,
   },
 }));
 
@@ -44,6 +49,7 @@ vi.mock("@/modules/incident/incident.model", () => ({
   IncidentModel: {
     findOne: incidentFindOne,
     create: incidentCreate,
+    find: incidentFind,
     findById: incidentFindById,
     findByIdAndUpdate: incidentFindByIdAndUpdate,
     deleteOne: incidentDeleteOne,
@@ -73,6 +79,12 @@ function makeCreateDoc() {
       resolved_on: null,
       closed_on: null,
       comment: null,
+      sla_started_at: new Date("2026-01-01T00:00:00.000Z"),
+      response_due_at: new Date("2026-01-01T00:15:00.000Z"),
+      resolution_due_at: new Date("2026-01-01T04:00:00.000Z"),
+      acknowledged_at: null,
+      sla_state: "Running",
+      sla_stopped_at: null,
       createdAt: new Date("2026-01-01T00:00:00.000Z"),
       updatedAt: new Date("2026-01-01T00:00:00.000Z"),
     }),
@@ -96,6 +108,12 @@ function makeUpdatedDoc() {
       resolved_on: null,
       closed_on: null,
       comment: null,
+      sla_started_at: new Date("2026-01-01T00:00:00.000Z"),
+      response_due_at: new Date("2026-01-01T00:15:00.000Z"),
+      resolution_due_at: new Date("2026-01-01T04:00:00.000Z"),
+      acknowledged_at: null,
+      sla_state: "Running",
+      sla_stopped_at: null,
       createdAt: new Date("2026-01-01T00:00:00.000Z"),
       updatedAt: new Date("2026-01-01T00:00:00.000Z"),
     }),
@@ -112,6 +130,7 @@ describe("incident.repository team scope", () => {
 
     counterFindOneAndUpdate.mockResolvedValue({ seq: 7 });
     incidentFindOne.mockResolvedValue(null);
+    userTeamFind.mockResolvedValue([]);
   });
 
   it("creates incident when creator/assignedBy/assignee are members of selected team", async () => {
@@ -274,6 +293,37 @@ describe("incident.repository team scope", () => {
     const result = await updateIncidentById("67dc66fd6f57fd4fce4d8548", { title: "New Title" });
     expect(result).toBeNull();
   });
+
+  it("maps SLA-related update fields into mongo update payload", async () => {
+    incidentFindById.mockReturnValue({
+      select: vi.fn().mockResolvedValue({ team_id: 2 }),
+    });
+    incidentFindByIdAndUpdate.mockReturnValue({
+      populate: vi.fn().mockResolvedValue(makeUpdatedDoc()),
+    });
+
+    await updateIncidentById("67dc66fd6f57fd4fce4d8548", {
+      acknowledgedAt: new Date("2026-01-01T00:10:00.000Z"),
+      slaState: "Stopped",
+      slaStoppedAt: new Date("2026-01-01T01:00:00.000Z"),
+      responseDueAt: new Date("2026-01-01T00:30:00.000Z"),
+      resolutionDueAt: new Date("2026-01-01T08:00:00.000Z"),
+    });
+
+    expect(incidentFindByIdAndUpdate).toHaveBeenCalledWith(
+      "67dc66fd6f57fd4fce4d8548",
+      {
+        $set: expect.objectContaining({
+          acknowledged_at: new Date("2026-01-01T00:10:00.000Z"),
+          sla_state: "Stopped",
+          sla_stopped_at: new Date("2026-01-01T01:00:00.000Z"),
+          response_due_at: new Date("2026-01-01T00:30:00.000Z"),
+          resolution_due_at: new Date("2026-01-01T08:00:00.000Z"),
+        }),
+      },
+      { new: true }
+    );
+  });
 });
 
 describe("incident.repository — findIncidentById", () => {
@@ -333,5 +383,52 @@ describe("incident.repository — deleteIncidentById", () => {
 
     const result = await deleteIncidentById("67dc66fd6f57fd4fce4d8548");
     expect(result).toBe(true);
+  });
+});
+
+describe("incident.repository — listIncidentInboxForUser", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    connectMongo.mockResolvedValue({ startSession });
+  });
+
+  it("returns inbox incidents with available assignees", async () => {
+    incidentFind.mockReturnValue({
+      populate: vi.fn().mockReturnValue({
+        sort: vi.fn().mockResolvedValue([makeUpdatedDoc()]),
+      }),
+    });
+    userTeamFind.mockReturnValue({
+      populate: vi.fn().mockResolvedValue([
+        {
+          user_id: {
+            _id: makeObjectIdLike("u-assignee"),
+            name: "Assignee",
+            email: "a@example.com",
+          },
+        },
+      ]),
+    });
+
+    const result = await listIncidentInboxForUser("67dc66fd6f57fd4fce4d8548");
+
+    expect(result).toHaveLength(1);
+    expect(result[0]?.availableAssignees).toEqual([
+      { id: "u-assignee", name: "Assignee", email: "a@example.com" },
+    ]);
+    expect(result[0]?.assignedToName).toBe("Assignee");
+  });
+
+  it("returns an empty array when no inbox incidents exist", async () => {
+    incidentFind.mockReturnValue({
+      populate: vi.fn().mockReturnValue({
+        sort: vi.fn().mockResolvedValue([]),
+      }),
+    });
+
+    const result = await listIncidentInboxForUser("67dc66fd6f57fd4fce4d8548");
+
+    expect(result).toEqual([]);
+    expect(userTeamFind).not.toHaveBeenCalled();
   });
 });
