@@ -6,9 +6,12 @@ vi.mock("@/lib/api-response", () => ({
 
 vi.mock("@/modules/incident/incident.service", () => ({
   listIncidents: vi.fn(),
+  listIncidentInbox: vi.fn(),
   createIncident: vi.fn(),
   getIncidentById: vi.fn(),
   updateIncidentById: vi.fn(),
+  acknowledgeIncident: vi.fn(),
+  reassignIncident: vi.fn(),
   deleteIncidentById: vi.fn(),
 }));
 
@@ -39,10 +42,13 @@ vi.mock("@/modules/product/product.service", () => ({
 
 import { ok } from "@/lib/api-response";
 import {
+  acknowledgeIncidentController,
   createIncidentController,
   deleteIncidentByIdController,
   getIncidentByIdController,
+  listIncidentInboxController,
   listIncidentsController,
+  reassignIncidentController,
   updateIncidentByIdController,
 } from "@/modules/incident/incident.controller";
 import * as incidentService from "@/modules/incident/incident.service";
@@ -93,9 +99,7 @@ function fakeProduct(overrides = {}) {
   return { id: PRODUCT_ID, name: "Widget", price: 9.99, ...overrides };
 }
 
-// ---- incident.controller ----
-
-describe("incident.controller — listIncidentsController", () => {
+describe("incident.controller - listIncidentsController", () => {
   beforeEach(() => vi.clearAllMocks());
 
   it("calls listIncidents and returns ok response", async () => {
@@ -110,7 +114,22 @@ describe("incident.controller — listIncidentsController", () => {
   });
 });
 
-describe("incident.controller — createIncidentController", () => {
+describe("incident.controller - listIncidentInboxController", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("calls listIncidentInbox and returns ok response", async () => {
+    const incidents = [fakeIncident({ id: "inc-inbox-1" })];
+    vi.mocked(incidentService.listIncidentInbox).mockResolvedValue(incidents as never);
+
+    const result = await listIncidentInboxController("user-1");
+
+    expect(incidentService.listIncidentInbox).toHaveBeenCalledWith("user-1");
+    expect(ok).toHaveBeenCalledWith(incidents);
+    expect(result).toMatchObject({ success: true, data: incidents, status: 200 });
+  });
+});
+
+describe("incident.controller - createIncidentController", () => {
   beforeEach(() => vi.clearAllMocks());
 
   it("calls createIncident with input and user info, returns 201", async () => {
@@ -134,7 +153,7 @@ describe("incident.controller — createIncidentController", () => {
   });
 });
 
-describe("incident.controller — getIncidentByIdController", () => {
+describe("incident.controller - getIncidentByIdController", () => {
   beforeEach(() => vi.clearAllMocks());
 
   it("calls getIncidentById and returns ok response", async () => {
@@ -148,7 +167,7 @@ describe("incident.controller — getIncidentByIdController", () => {
   });
 });
 
-describe("incident.controller — updateIncidentByIdController", () => {
+describe("incident.controller - updateIncidentByIdController", () => {
   beforeEach(() => vi.clearAllMocks());
 
   it("calls updateIncidentById and returns ok response", async () => {
@@ -163,7 +182,37 @@ describe("incident.controller — updateIncidentByIdController", () => {
   });
 });
 
-describe("incident.controller — deleteIncidentByIdController", () => {
+describe("incident.controller - acknowledgeIncidentController", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("calls acknowledgeIncident and returns ok response", async () => {
+    const incident = fakeIncident({ status: "In Progress" });
+    vi.mocked(incidentService.acknowledgeIncident).mockResolvedValue(incident as never);
+
+    const result = await acknowledgeIncidentController(INCIDENT_ID, "user-1", "Alice");
+
+    expect(incidentService.acknowledgeIncident).toHaveBeenCalledWith(INCIDENT_ID, "user-1", "Alice");
+    expect(ok).toHaveBeenCalledWith(incident);
+    expect(result).toMatchObject({ success: true, data: incident, status: 200 });
+  });
+});
+
+describe("incident.controller - reassignIncidentController", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("calls reassignIncident and returns ok response", async () => {
+    const incident = fakeIncident({ assignedTo: "user-2" });
+    vi.mocked(incidentService.reassignIncident).mockResolvedValue(incident as never);
+
+    const result = await reassignIncidentController(INCIDENT_ID, "user-2", "user-1", "Alice");
+
+    expect(incidentService.reassignIncident).toHaveBeenCalledWith(INCIDENT_ID, "user-2", "user-1", "Alice");
+    expect(ok).toHaveBeenCalledWith(incident);
+    expect(result).toMatchObject({ success: true, data: incident, status: 200 });
+  });
+});
+
+describe("incident.controller - deleteIncidentByIdController", () => {
   beforeEach(() => vi.clearAllMocks());
 
   it("calls deleteIncidentById and returns deleted:true", async () => {
@@ -177,9 +226,7 @@ describe("incident.controller — deleteIncidentByIdController", () => {
   });
 });
 
-// ---- team.controller ----
-
-describe("team.controller — listTeamsController", () => {
+describe("team.controller - listTeamsController", () => {
   beforeEach(() => vi.clearAllMocks());
 
   it("calls listTeams with userId and returns ok", async () => {
@@ -193,7 +240,7 @@ describe("team.controller — listTeamsController", () => {
   });
 });
 
-describe("team.controller — createTeamController", () => {
+describe("team.controller - createTeamController", () => {
   beforeEach(() => vi.clearAllMocks());
 
   it("calls createTeam and returns 201", async () => {
@@ -208,7 +255,7 @@ describe("team.controller — createTeamController", () => {
   });
 });
 
-describe("team.controller — getTeamByIdController", () => {
+describe("team.controller - getTeamByIdController", () => {
   beforeEach(() => vi.clearAllMocks());
 
   it("calls getTeamById and returns ok", async () => {
@@ -222,7 +269,7 @@ describe("team.controller — getTeamByIdController", () => {
   });
 });
 
-describe("team.controller — updateTeamByIdController", () => {
+describe("team.controller - updateTeamByIdController", () => {
   beforeEach(() => vi.clearAllMocks());
 
   it("calls updateTeamById and returns ok", async () => {
@@ -237,7 +284,7 @@ describe("team.controller — updateTeamByIdController", () => {
   });
 });
 
-describe("team.controller — deleteTeamByIdController", () => {
+describe("team.controller - deleteTeamByIdController", () => {
   beforeEach(() => vi.clearAllMocks());
 
   it("calls deleteTeamById and returns deleted:true", async () => {
@@ -250,9 +297,7 @@ describe("team.controller — deleteTeamByIdController", () => {
   });
 });
 
-// ---- user.controller ----
-
-describe("user.controller — listUsersController", () => {
+describe("user.controller - listUsersController", () => {
   beforeEach(() => vi.clearAllMocks());
 
   it("calls listUsers and returns ok", async () => {
@@ -266,7 +311,7 @@ describe("user.controller — listUsersController", () => {
   });
 });
 
-describe("user.controller — createUserController", () => {
+describe("user.controller - createUserController", () => {
   beforeEach(() => vi.clearAllMocks());
 
   it("calls createUser and returns 201", async () => {
@@ -281,7 +326,7 @@ describe("user.controller — createUserController", () => {
   });
 });
 
-describe("user.controller — registerUserController", () => {
+describe("user.controller - registerUserController", () => {
   beforeEach(() => vi.clearAllMocks());
 
   it("calls registerUser and returns 201", async () => {
@@ -296,7 +341,7 @@ describe("user.controller — registerUserController", () => {
   });
 });
 
-describe("user.controller — getUserByIdController", () => {
+describe("user.controller - getUserByIdController", () => {
   beforeEach(() => vi.clearAllMocks());
 
   it("calls getUserById and returns ok", async () => {
@@ -310,7 +355,7 @@ describe("user.controller — getUserByIdController", () => {
   });
 });
 
-describe("user.controller — updateUserByIdController", () => {
+describe("user.controller - updateUserByIdController", () => {
   beforeEach(() => vi.clearAllMocks());
 
   it("calls updateUserById and returns ok", async () => {
@@ -325,7 +370,7 @@ describe("user.controller — updateUserByIdController", () => {
   });
 });
 
-describe("user.controller — deleteUserByIdController", () => {
+describe("user.controller - deleteUserByIdController", () => {
   beforeEach(() => vi.clearAllMocks());
 
   it("calls deleteUserById and returns deleted:true", async () => {
@@ -338,9 +383,7 @@ describe("user.controller — deleteUserByIdController", () => {
   });
 });
 
-// ---- product.controller ----
-
-describe("product.controller — listProductsController", () => {
+describe("product.controller - listProductsController", () => {
   beforeEach(() => vi.clearAllMocks());
 
   it("calls listProducts and returns ok", async () => {
@@ -354,7 +397,7 @@ describe("product.controller — listProductsController", () => {
   });
 });
 
-describe("product.controller — createProductController", () => {
+describe("product.controller - createProductController", () => {
   beforeEach(() => vi.clearAllMocks());
 
   it("calls createProduct and returns 201", async () => {
@@ -369,7 +412,7 @@ describe("product.controller — createProductController", () => {
   });
 });
 
-describe("product.controller — getProductByIdController", () => {
+describe("product.controller - getProductByIdController", () => {
   beforeEach(() => vi.clearAllMocks());
 
   it("calls getProductById and returns ok", async () => {
@@ -383,7 +426,7 @@ describe("product.controller — getProductByIdController", () => {
   });
 });
 
-describe("product.controller — updateProductByIdController", () => {
+describe("product.controller - updateProductByIdController", () => {
   beforeEach(() => vi.clearAllMocks());
 
   it("calls updateProductById and returns ok", async () => {
@@ -398,7 +441,7 @@ describe("product.controller — updateProductByIdController", () => {
   });
 });
 
-describe("product.controller — deleteProductByIdController", () => {
+describe("product.controller - deleteProductByIdController", () => {
   beforeEach(() => vi.clearAllMocks());
 
   it("calls deleteProductById and returns deleted:true", async () => {

@@ -1,11 +1,22 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 
+const DISPLAY_TIME_ZONE = "Asia/Singapore";
+
 const displayDateFormatter = new Intl.DateTimeFormat("en-GB", {
-  timeZone: "UTC",
+  timeZone: DISPLAY_TIME_ZONE,
   day: "2-digit",
   month: "2-digit",
   year: "numeric",
+});
+
+const dateTimeFormatter = new Intl.DateTimeFormat("en-GB", {
+  timeZone: DISPLAY_TIME_ZONE,
+  day: "2-digit",
+  month: "2-digit",
+  year: "numeric",
+  hour: "2-digit",
+  minute: "2-digit",
 });
 
 export function cn(...inputs: ClassValue[]) {
@@ -31,6 +42,11 @@ export function capitalizeName(name: string): string {
 export function formatDisplayDate(value: Date | string): string {
   const date = value instanceof Date ? value : new Date(value);
   return displayDateFormatter.format(date);
+}
+
+export function formatDisplayDateTime(value: Date | string): string {
+  const date = value instanceof Date ? value : new Date(value);
+  return dateTimeFormatter.format(date);
 }
 
 export function formatIncidentCode(incidentId: number): string {
@@ -60,4 +76,21 @@ export function formatRelativeTime(date: Date | string): string {
   if (diffDay < 7) return `${diffDay} days ago`;
   if (diffDay < 30) return `${Math.floor(diffDay / 7)} weeks ago`;
   return formatDisplayDate(target);
+}
+
+export function formatDurationFromNow(date: Date | string): string {
+  const target = date instanceof Date ? date : new Date(date);
+  const diffMs = target.getTime() - Date.now();
+  const absMs = Math.abs(diffMs);
+  const totalMinutes = Math.ceil(absMs / (60 * 1000));
+  const days = Math.floor(totalMinutes / (24 * 60));
+  const hours = Math.floor((totalMinutes % (24 * 60)) / 60);
+  const minutes = totalMinutes % 60;
+
+  const parts: string[] = [];
+  if (days > 0) parts.push(`${days}d`);
+  if (hours > 0) parts.push(`${hours}h`);
+  if (minutes > 0 || parts.length === 0) parts.push(`${minutes}m`);
+
+  return `${diffMs >= 0 ? "in" : ""} ${parts.join(" ")}`.trim();
 }

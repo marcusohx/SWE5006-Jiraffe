@@ -7,6 +7,7 @@ import { TicketsTableSection, type TeamScopeOption } from "@/components/tickets/
 import { authOptions } from "@/modules/auth/auth.options";
 import { listIncidents } from "@/modules/incident/incident.service";
 import { listTeams } from "@/modules/team/team.service";
+import type { TeamOptionWithMembers } from "@/types/domain";
 
 export default async function TicketsPage() {
   const session = await getServerSession(authOptions);
@@ -23,6 +24,11 @@ export default async function TicketsPage() {
       name: team.name,
     }))
     .sort((a, b) => a.name.localeCompare(b.name));
+  const teamOptionsWithMembers: TeamOptionWithMembers[] = teams.map((team) => ({
+    teamId: team.teamId,
+    name: team.name,
+    members: team.members,
+  }));
   const scopedTeamIds = new Set(teamScopeOptions.map((team) => team.teamId));
   const scopedIncidents = incidents.filter((incident) => scopedTeamIds.has(incident.teamId));
 
@@ -44,7 +50,12 @@ export default async function TicketsPage() {
         </CardHeader>
         <CardContent className="pt-5">
           <Suspense fallback={null}>
-            <TicketsTableSection initialRows={scopedIncidents} teamOptions={teamScopeOptions} />
+            <TicketsTableSection
+              initialRows={scopedIncidents}
+              teamOptions={teamScopeOptions}
+              teamOptionsWithMembers={teamOptionsWithMembers}
+              currentUserId={session.user.id}
+            />
           </Suspense>
         </CardContent>
       </Card>

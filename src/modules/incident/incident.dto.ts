@@ -26,8 +26,13 @@ export const updateIncidentSchema = z.object({
   comment: z.string().nullable().optional(),
 });
 
+export const reassignIncidentSchema = z.object({
+  assignedTo: z.string().min(1, "Assigned to is required"),
+});
+
 export type CreateIncidentInput = z.infer<typeof createIncidentSchema>;
 export type UpdateIncidentInput = z.infer<typeof updateIncidentSchema>;
+export type ReassignIncidentInput = z.infer<typeof reassignIncidentSchema>;
 
 export function parseCreateIncident(input: unknown): CreateIncidentInput {
   return createIncidentSchema.parse(input);
@@ -39,4 +44,8 @@ export function parseUpdateIncident(input: unknown): UpdateIncidentInput {
 
 export function parseIncidentId(input: unknown): string {
   return incidentIdSchema.parse(input);
+}
+
+export function parseReassignIncident(input: unknown): ReassignIncidentInput {
+  return reassignIncidentSchema.parse(input);
 }

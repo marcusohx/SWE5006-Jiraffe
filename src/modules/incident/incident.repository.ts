@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import { connectMongo } from "@/lib/db/mongodb";
 import { capitalizeName } from "@/lib/utils";
+import { createIncidentSlaSnapshot, recomputeIncidentSlaSnapshot } from "@/modules/incident/incident-sla";
 import type {
   CreateIncidentRepositoryInput,
   Incident,
@@ -11,7 +12,12 @@ import { IncidentModel } from "@/modules/incident/incident.model";
 import { CounterModel, UserTeamModel } from "@/modules/team/team.model";
 import "@/modules/user/user.model";
 
-type IncidentRef = { toString(): string; name?: string } | null | undefined;
+type IncidentRef =
+  | { _id?: mongoose.Types.ObjectId | string; name?: string; toString?: () => string }
+  | mongoose.Types.ObjectId
+  | string
+  | null
+  | undefined;
 type IncidentDocumentShape = {
   _id: { toString(): string };
   incident_id?: number | null;
@@ -27,15 +33,51 @@ type IncidentDocumentShape = {
   resolved_on?: Date | null;
   closed_on?: Date | null;
   comment?: string | null;
+  sla_started_at?: Date;
+  response_due_at?: Date;
+  resolution_due_at?: Date;
+  acknowledged_at?: Date | null;
+  sla_state?: "Running" | "Stopped";
+  sla_stopped_at?: Date | null;
   createdAt: Date;
   updatedAt: Date;
 };
+
+export interface IncidentInboxItem extends IncidentWithNames {
+  availableAssignees: { id: string; name: string; email: string }[];
+}
 
 function toObjectId(value: string, fieldName: string): mongoose.Types.ObjectId {
   if (!mongoose.Types.ObjectId.isValid(value)) {
     throw new Error(`${fieldName} is invalid`);
   }
   return new mongoose.Types.ObjectId(value);
+}
+
+function getRefId(ref: IncidentRef): string {
+  if (!ref) {
+    return "";
+  }
+  if (typeof ref === "string") {
+    return ref;
+  }
+  if (ref instanceof mongoose.Types.ObjectId) {
+    return ref.toString();
+  }
+  if (typeof ref === "object" && "_id" in ref && ref._id) {
+    return ref._id.toString();
+  }
+  if (typeof ref.toString === "function") {
+    return ref.toString();
+  }
+  return "";
+}
+
+function getRefName(ref: IncidentRef): string {
+  if (!ref || typeof ref === "string" || ref instanceof mongoose.Types.ObjectId) {
+    return "Unknown";
+  }
+  return ref.name ?? "Unknown";
 }
 
 async function getNextIncidentId(session: mongoose.ClientSession): Promise<number> {
@@ -91,6 +133,18 @@ async function assertUserInTeam(
 
 function mapIncident(doc: Record<string, unknown>): Incident {
   const d = doc as IncidentDocumentShape;
+  const now = new Date();
+  const sla = recomputeIncidentSlaSnapshot(
+    d.severity,
+    {
+      startedAt: d.sla_started_at ?? d.createdAt,
+      acknowledgedAt: d.acknowledged_at ?? null,
+      state: d.sla_state ?? "Running",
+      stoppedAt: d.sla_stopped_at ?? null,
+    },
+    now
+  );
+
   return {
     id: d._id.toString(),
     incidentId: d.incident_id ?? 0,
@@ -100,12 +154,17 @@ function mapIncident(doc: Record<string, unknown>): Incident {
     severity: d.severity,
     status: d.status,
     boardOrder: d.board_order ?? new Date(d.createdAt).getTime(),
-    createdBy: d.created_by?.toString() ?? "",
-    assignedBy: d.assigned_by?.toString() ?? "",
-    assignedTo: d.assigned_to?.toString() ?? "",
+    createdBy: getRefId(d.created_by),
+    assignedBy: getRefId(d.assigned_by),
+    assignedTo: getRefId(d.assigned_to),
     resolvedOn: d.resolved_on ?? null,
     closedOn: d.closed_on ?? null,
     comment: d.comment ?? null,
+    sla: {
+      ...sla,
+      responseDueAt: d.response_due_at ?? sla.responseDueAt,
+      resolutionDueAt: d.resolution_due_at ?? sla.resolutionDueAt,
+    },
     createdAt: d.createdAt,
     updatedAt: d.updatedAt,
   };
@@ -116,9 +175,9 @@ function mapIncidentWithNames(doc: Record<string, unknown>): IncidentWithNames {
   const base = mapIncident(doc);
   return {
     ...base,
-    createdByName: capitalizeName(d.created_by?.name ?? "Unknown"),
-    assignedByName: capitalizeName(d.assigned_by?.name ?? "Unknown"),
-    assignedToName: capitalizeName(d.assigned_to?.name ?? "Unknown"),
+    createdByName: capitalizeName(getRefName(d.created_by)),
+    assignedByName: capitalizeName(getRefName(d.assigned_by)),
+    assignedToName: capitalizeName(getRefName(d.assigned_to)),
   };
 }
 
@@ -151,6 +210,7 @@ export async function createIncident(
       ]);
 
       const incidentId = await getNextIncidentId(session);
+      const sla = createIncidentSlaSnapshot(data.severity);
       const created = await IncidentModel.create(
         [
           {
@@ -165,6 +225,12 @@ export async function createIncident(
             assigned_by: toObjectId(data.assignedBy, "Assigned by"),
             assigned_to: toObjectId(data.assignedTo, "Assigned to"),
             comment: data.comment ?? null,
+            sla_started_at: sla.startedAt,
+            response_due_at: sla.responseDueAt,
+            resolution_due_at: sla.resolutionDueAt,
+            acknowledged_at: sla.acknowledgedAt,
+            sla_state: sla.state,
+            sla_stopped_at: sla.stoppedAt,
           },
         ],
         { session }
@@ -194,6 +260,55 @@ export async function findIncidentById(id: string): Promise<IncidentWithNames | 
   }
   const doc = await IncidentModel.findById(id).populate(USER_POPULATE);
   return doc ? mapIncidentWithNames(doc.toObject()) : null;
+}
+
+async function listAssignableTeamMembers(teamId: number): Promise<IncidentInboxItem["availableAssignees"]> {
+  const membershipDocs = await UserTeamModel.find({ team_id: teamId }).populate({
+    path: "user_id",
+    select: "name email",
+  });
+
+  const uniqueUsers = new Map<string, { id: string; name: string; email: string }>();
+  membershipDocs.forEach((doc) => {
+    const rawUser = doc.user_id as { _id?: mongoose.Types.ObjectId | string; name?: string; email?: string } | null;
+    const id = rawUser?._id?.toString();
+    if (!id || uniqueUsers.has(id)) {
+      return;
+    }
+    uniqueUsers.set(id, {
+      id,
+      name: capitalizeName(rawUser?.name ?? "Unknown"),
+      email: rawUser?.email ?? "",
+    });
+  });
+
+  return Array.from(uniqueUsers.values()).sort((a, b) => a.name.localeCompare(b.name));
+}
+
+export async function listIncidentInboxForUser(userId: string): Promise<IncidentInboxItem[]> {
+  await connectMongo();
+  const assignedTo = toObjectId(userId, "User id");
+  const docs = await IncidentModel.find({
+    assigned_to: assignedTo,
+    status: "Open",
+    acknowledged_at: null,
+  })
+    .populate(USER_POPULATE)
+    .sort({ createdAt: -1 });
+
+  const teamIds = Array.from(new Set(docs.map((doc) => doc.team_id)));
+  const assigneeMap = new Map<number, IncidentInboxItem["availableAssignees"]>();
+
+  await Promise.all(
+    teamIds.map(async (teamId) => {
+      assigneeMap.set(teamId, await listAssignableTeamMembers(teamId));
+    })
+  );
+
+  return docs.map((doc) => ({
+    ...mapIncidentWithNames(doc.toObject()),
+    availableAssignees: assigneeMap.get(doc.team_id) ?? [],
+  }));
 }
 
 export async function updateIncidentById(
@@ -227,6 +342,11 @@ export async function updateIncidentById(
   if (updates.resolvedOn !== undefined) mongoUpdates.resolved_on = updates.resolvedOn;
   if (updates.closedOn !== undefined) mongoUpdates.closed_on = updates.closedOn;
   if (updates.comment !== undefined) mongoUpdates.comment = updates.comment;
+  if (updates.acknowledgedAt !== undefined) mongoUpdates.acknowledged_at = updates.acknowledgedAt;
+  if (updates.slaState !== undefined) mongoUpdates.sla_state = updates.slaState;
+  if (updates.slaStoppedAt !== undefined) mongoUpdates.sla_stopped_at = updates.slaStoppedAt;
+  if (updates.responseDueAt !== undefined) mongoUpdates.response_due_at = updates.responseDueAt;
+  if (updates.resolutionDueAt !== undefined) mongoUpdates.resolution_due_at = updates.resolutionDueAt;
 
   const updated = await IncidentModel.findByIdAndUpdate(
     id,

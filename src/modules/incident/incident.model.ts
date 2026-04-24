@@ -1,4 +1,5 @@
 import mongoose, { Schema, type InferSchemaType, type Model } from "mongoose";
+import type { IncidentSlaSnapshot, IncidentSlaState } from "@/modules/incident/incident-sla";
 
 export type IncidentSeverity = "Low" | "Medium" | "High" | "Critical";
 export type IncidentStatus = "Open" | "In Progress" | "Closed";
@@ -18,6 +19,7 @@ export interface Incident {
   resolvedOn: Date | null;
   closedOn: Date | null;
   comment: string | null;
+  sla: IncidentSlaSnapshot;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -52,6 +54,11 @@ export interface UpdateIncidentRepositoryInput {
   resolvedOn?: Date | null;
   closedOn?: Date | null;
   comment?: string | null;
+  acknowledgedAt?: Date | null;
+  slaState?: IncidentSlaState;
+  slaStoppedAt?: Date | null;
+  responseDueAt?: Date;
+  resolutionDueAt?: Date;
 }
 
 const incidentSchema = new Schema(
@@ -69,6 +76,12 @@ const incidentSchema = new Schema(
     resolved_on: { type: Date, default: null },
     closed_on: { type: Date, default: null },
     comment: { type: String, default: null },
+    sla_started_at: { type: Date, required: true },
+    response_due_at: { type: Date, required: true },
+    resolution_due_at: { type: Date, required: true },
+    acknowledged_at: { type: Date, default: null },
+    sla_state: { type: String, required: true, enum: ["Running", "Stopped"], default: "Running" },
+    sla_stopped_at: { type: Date, default: null },
   },
   { timestamps: true }
 );

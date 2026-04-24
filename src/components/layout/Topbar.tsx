@@ -2,6 +2,7 @@
 
 import { signOut, useSession } from "next-auth/react";
 import { Search, Filter, LogOut } from "lucide-react";
+import { IncidentNotificationBell } from "@/components/tickets/IncidentNotificationBell";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { CreateTicketButton } from "@/components/tickets/CreateTicketButton";
@@ -37,6 +38,7 @@ export function Topbar() {
         </Button>
       </div>
       <div className="flex items-center gap-3">
+        <IncidentNotificationBell />
         <CreateTicketButton label="New Ticket" />
         <Button
           variant="secondary"

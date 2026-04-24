@@ -176,6 +176,7 @@ export function CreateTicketForm({
         throw new Error(payload.success ? "Unable to create ticket." : payload.error);
       }
 
+      window.dispatchEvent(new CustomEvent("incident-inbox-refresh"));
       onSuccess();
     } catch (e) {
       setSubmitError(e instanceof Error ? e.message : "Unable to create ticket.");

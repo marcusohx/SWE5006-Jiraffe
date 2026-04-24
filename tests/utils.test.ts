@@ -1,5 +1,13 @@
-import { describe, expect, it } from "vitest";
-import { cn, capitalizeName, formatDisplayDate, formatIncidentCode, includesIgnoreCase } from "@/lib/utils";
+import { describe, expect, it, vi } from "vitest";
+import {
+  cn,
+  capitalizeName,
+  formatDisplayDate,
+  formatDisplayDateTime,
+  formatDurationFromNow,
+  formatIncidentCode,
+  includesIgnoreCase,
+} from "@/lib/utils";
 
 describe("cn", () => {
   it("merges class names into a string", () => {
@@ -57,6 +65,17 @@ describe("formatDisplayDate", () => {
   });
 });
 
+describe("formatDisplayDateTime", () => {
+  it("formats a Date object in Singapore time", () => {
+    const date = new Date("2026-04-18T17:30:00.000Z");
+    expect(formatDisplayDateTime(date)).toBe("19/04/2026, 01:30");
+  });
+
+  it("formats an ISO string in Singapore time", () => {
+    expect(formatDisplayDateTime("2026-04-18T16:05:00.000Z")).toBe("19/04/2026, 00:05");
+  });
+});
+
 describe("formatIncidentCode", () => {
   it("pads single-digit ids to JIR-001", () => {
     expect(formatIncidentCode(1)).toBe("JIR-001");
@@ -106,5 +125,21 @@ describe("includesIgnoreCase", () => {
 
   it("returns true for empty query string", () => {
     expect(includesIgnoreCase("hello", "")).toBe(true);
+  });
+});
+
+describe("formatDurationFromNow", () => {
+  it("returns future duration with 'in' prefix", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-04-24T00:00:00.000Z"));
+    expect(formatDurationFromNow("2026-04-24T01:30:00.000Z")).toBe("in 1h 30m");
+    vi.useRealTimers();
+  });
+
+  it("returns past duration without 'in' prefix", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-04-24T02:00:00.000Z"));
+    expect(formatDurationFromNow("2026-04-24T00:30:00.000Z")).toBe("1h 30m");
+    vi.useRealTimers();
   });
 });

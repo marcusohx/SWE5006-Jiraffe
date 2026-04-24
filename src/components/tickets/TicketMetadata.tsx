@@ -1,11 +1,15 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { IncidentAcknowledgeButton } from "@/components/tickets/IncidentAcknowledgeButton";
+import { IncidentCloseButton } from "@/components/tickets/IncidentCloseButton";
+import { IncidentReassignControl } from "@/components/tickets/IncidentReassignControl";
+import { SlaStatusBadge } from "@/components/tickets/SlaStatusBadge";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dropdown, DropdownItem } from "@/components/ui/dropdown";
 import { SEVERITY_OPTIONS, STATUS_OPTIONS, severityVariant, statusVariant } from "@/lib/constants";
-import { capitalizeName, formatDisplayDate } from "@/lib/utils";
+import { capitalizeName, formatDisplayDate, formatDisplayDateTime } from "@/lib/utils";
 import type { IncidentSeverity, IncidentStatus, IncidentWithNames } from "@/modules/incident/incident.model";
 import type { ApiError, ApiSuccess } from "@/types/api";
 import type { TeamOptionWithMembers, UserOption } from "@/types/domain";
@@ -43,12 +47,14 @@ function buildTeamUsers(teams: TeamOptionWithMembers[], teamId: number | null | 
   if (!teamId) return [];
   const team = teams.find((t) => t.teamId === teamId);
   if (!team) return [];
+
   const unique = new Map<string, UserOption>();
   team.members.forEach((member) => {
     if (!unique.has(member.userId)) {
       unique.set(member.userId, { id: member.userId, name: member.name, email: member.email });
     }
   });
+
   return Array.from(unique.values()).sort((a, b) =>
     capitalizeName(a.name).localeCompare(capitalizeName(b.name))
   );
@@ -116,8 +122,14 @@ function useStatusField(incident: IncidentWithNames, run: (args: OptimisticArgs)
     const nextClosedOn = nextStatus === "Closed" ? new Date().toISOString() : null;
     run({
       field: "status",
-      apply: () => { setStatus(nextStatus); setClosedOn(nextClosedOn); },
-      rollback: () => { setStatus(prevStatus); setClosedOn(prevClosedOn); },
+      apply: () => {
+        setStatus(nextStatus);
+        setClosedOn(nextClosedOn);
+      },
+      rollback: () => {
+        setStatus(prevStatus);
+        setClosedOn(prevClosedOn);
+      },
       updates: { status: nextStatus },
       errorMsg: "Unable to update status.",
     });
@@ -164,8 +176,14 @@ function useUserAssignment(
     const nextName = capitalizeName(user.name);
     run({
       field,
-      apply: () => { setUserId(user.id); setUserName(nextName); },
-      rollback: () => { setUserId(prevId); setUserName(prevName); },
+      apply: () => {
+        setUserId(user.id);
+        setUserName(nextName);
+      },
+      rollback: () => {
+        setUserId(prevId);
+        setUserName(prevName);
+      },
       updates: { [field]: user.id },
       errorMsg,
     });
@@ -184,32 +202,67 @@ function useIncidentMetadata(incident: IncidentWithNames) {
   const { status, closedOn, onStatusChange } = useStatusField(incident, run);
   const { severity, onSeverityChange } = useSeverityField(incident, run);
   const assignee = useUserAssignment(
-    "assignedTo", incident.assignedTo, incident.assignedToName,
-    "Unable to update assignee.", users, run
+    "assignedTo",
+    incident.assignedTo,
+    incident.assignedToName,
+    "Unable to update assignee.",
+    users,
+    run
   );
   const assignedBy = useUserAssignment(
-    "assignedBy", incident.assignedBy, incident.assignedByName,
-    "Unable to update assigned by.", users, run
+    "assignedBy",
+    incident.assignedBy,
+    incident.assignedByName,
+    "Unable to update assigned by.",
+    users,
+    run
   );
 
   return {
-    status, severity, closedOn,
-    assignedToId: assignee.userId, assignedToName: assignee.userName,
-    assignedById: assignedBy.userId, assignedByName: assignedBy.userName,
-    users, loadingUsers, error: teamsError, updatingField,
-    onStatusChange, onSeverityChange,
+    status,
+    severity,
+    closedOn,
+    assignedToId: assignee.userId,
+    assignedToName: assignee.userName,
+    assignedById: assignedBy.userId,
+    assignedByName: assignedBy.userName,
+    users,
+    loadingUsers,
+    error: teamsError,
+    updatingField,
+    onStatusChange,
+    onSeverityChange,
     onAssigneeChange: assignee.onChange,
     onAssignedByChange: assignedBy.onChange,
   };
 }
 
-export function TicketMetadata({ incident }: { incident: IncidentWithNames }) {
+export function TicketMetadata({
+  incident,
+  currentUserId,
+}: {
+  incident: IncidentWithNames;
+  currentUserId: string | null;
+}) {
   const {
-    status, severity, assignedToId, assignedById,
-    assignedToName, assignedByName, closedOn,
-    users, loadingUsers, error, updatingField,
-    onStatusChange, onSeverityChange, onAssigneeChange, onAssignedByChange,
+    status,
+    severity,
+    assignedToId,
+    assignedById,
+    assignedToName,
+    assignedByName,
+    closedOn,
+    users,
+    loadingUsers,
+    error,
+    updatingField,
+    onStatusChange,
+    onSeverityChange,
+    onAssigneeChange,
+    onAssignedByChange,
   } = useIncidentMetadata(incident);
+
+  const canManageIncident = currentUserId === incident.assignedTo;
 
   return (
     <Card>
@@ -224,7 +277,7 @@ export function TicketMetadata({ incident }: { incident: IncidentWithNames }) {
               <DropdownItem
                 key={option}
                 selected={option === status}
-                disabled={Boolean(updatingField)}
+                disabled={Boolean(updatingField) || !canManageIncident}
                 onClick={() => onStatusChange(option)}
               >
                 {option}
@@ -265,7 +318,7 @@ export function TicketMetadata({ incident }: { incident: IncidentWithNames }) {
                 <DropdownItem
                   key={user.id}
                   selected={user.id === assignedToId}
-                  disabled={Boolean(updatingField)}
+                  disabled={Boolean(updatingField) || !canManageIncident}
                   onClick={() => onAssigneeChange(user.id)}
                 >
                   {capitalizeName(user.name)}
@@ -274,6 +327,7 @@ export function TicketMetadata({ incident }: { incident: IncidentWithNames }) {
             )}
           </Dropdown>
         </div>
+
         <div>
           <p className="text-xs uppercase text-muted">Assigned By</p>
           <Dropdown
@@ -290,7 +344,7 @@ export function TicketMetadata({ incident }: { incident: IncidentWithNames }) {
                 <DropdownItem
                   key={user.id}
                   selected={user.id === assignedById}
-                  disabled={Boolean(updatingField)}
+                  disabled={Boolean(updatingField) || !canManageIncident}
                   onClick={() => onAssignedByChange(user.id)}
                 >
                   {capitalizeName(user.name)}
@@ -299,11 +353,62 @@ export function TicketMetadata({ incident }: { incident: IncidentWithNames }) {
             )}
           </Dropdown>
         </div>
+
         {closedOn ? (
           <div>
             <p className="text-xs uppercase text-muted">Closed On</p>
             <p className="text-sm font-medium">{formatDisplayDate(closedOn)}</p>
           </div>
+        ) : null}
+
+        <div className="rounded-2xl border border-border bg-surface p-4">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-xs uppercase text-muted">SLA</p>
+              <p className="mt-1 text-sm font-medium">Current compliance state</p>
+            </div>
+            <SlaStatusBadge incident={incident} />
+          </div>
+          <div className="mt-3 space-y-2 text-sm text-muted">
+            <p>Started {formatDisplayDateTime(incident.sla.startedAt)}</p>
+            <p>Response due {formatDisplayDateTime(incident.sla.responseDueAt)}</p>
+            <p>Resolution due {formatDisplayDateTime(incident.sla.resolutionDueAt)}</p>
+            {incident.sla.acknowledgedAt ? (
+              <p>Acknowledged {formatDisplayDateTime(incident.sla.acknowledgedAt)}</p>
+            ) : null}
+          </div>
+        </div>
+
+        {canManageIncident && incident.status === "Open" ? (
+          <div className="space-y-3 rounded-2xl border border-border bg-surface p-4">
+            <p className="text-xs uppercase text-muted">Action Required</p>
+            <div className="flex flex-wrap gap-2">
+              <IncidentAcknowledgeButton incidentId={incident.id} />
+              <IncidentReassignControl
+                incidentId={incident.id}
+                currentAssigneeId={incident.assignedTo}
+                users={users}
+              />
+            </div>
+          </div>
+        ) : null}
+
+        {canManageIncident && incident.status === "In Progress" ? (
+          <div className="space-y-3 rounded-2xl border border-border bg-surface p-4">
+            <p className="text-xs uppercase text-muted">Resolution</p>
+            <div className="flex flex-wrap gap-2">
+              <IncidentCloseButton incidentId={incident.id} />
+              <IncidentReassignControl
+                incidentId={incident.id}
+                currentAssigneeId={incident.assignedTo}
+                users={users}
+              />
+            </div>
+          </div>
+        ) : null}
+
+        {!canManageIncident ? (
+          <p className="text-xs text-muted">Only the assigned user can acknowledge, reassign, or close this ticket.</p>
         ) : null}
 
         {error ? <p className="text-sm text-red-600">{error}</p> : null}

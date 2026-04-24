@@ -5,6 +5,8 @@ import {
   parseCreateIncident,
   parseUpdateIncident,
   parseIncidentId,
+  parseReassignIncident,
+  reassignIncidentSchema,
 } from "@/modules/incident/incident.dto";
 
 describe("createIncidentSchema", () => {
@@ -97,5 +99,27 @@ describe("parseIncidentId", () => {
 
   it("throws for non-string", () => {
     expect(() => parseIncidentId(123)).toThrow();
+  });
+});
+
+describe("reassignIncidentSchema", () => {
+  it("accepts valid assignedTo input", () => {
+    const result = reassignIncidentSchema.safeParse({ assignedTo: "u2" });
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects empty assignedTo", () => {
+    const result = reassignIncidentSchema.safeParse({ assignedTo: "" });
+    expect(result.success).toBe(false);
+  });
+});
+
+describe("parseReassignIncident", () => {
+  it("returns parsed input for valid data", () => {
+    expect(parseReassignIncident({ assignedTo: "u2" })).toEqual({ assignedTo: "u2" });
+  });
+
+  it("throws for invalid data", () => {
+    expect(() => parseReassignIncident({ assignedTo: "" })).toThrow();
   });
 });

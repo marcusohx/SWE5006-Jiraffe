@@ -1,12 +1,13 @@
+import { getServerSession } from "next-auth";
 import { ArrowLeft, Calendar, User } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { EditableComment } from "@/components/tickets/EditableComment";
 import { EditableTicketDetails } from "@/components/tickets/EditableTicketDetails";
 import { TicketMetadata } from "@/components/tickets/TicketMetadata";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { formatDisplayDate } from "@/lib/utils";
+import { formatDisplayDate, formatIncidentCode } from "@/lib/utils";
+import { authOptions } from "@/modules/auth/auth.options";
 import { getIncidentById } from "@/modules/incident/incident.service";
 
 function resolveBackHref(returnTo: string | string[] | undefined): string {
@@ -30,6 +31,7 @@ export default async function TicketDetailPage({
   params: Promise<{ id: string }>;
   searchParams: Promise<{ returnTo?: string | string[] }>;
 }) {
+  const session = await getServerSession(authOptions);
   const { id } = await params;
   const { returnTo } = await searchParams;
   const backHref = resolveBackHref(returnTo);
@@ -52,7 +54,9 @@ export default async function TicketDetailPage({
             <h1 className="text-3xl font-semibold">{incident.title}</h1>
           </div>
         </div>
-        <Button>Assign to me</Button>
+        <div className="rounded-full border border-border bg-white px-4 py-2 text-xs font-semibold text-muted">
+          {formatIncidentCode(incident.incidentId)}
+        </div>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[1.6fr_1fr]">
@@ -80,7 +84,7 @@ export default async function TicketDetailPage({
           </CardContent>
         </Card>
 
-        <TicketMetadata incident={incident} />
+        <TicketMetadata incident={incident} currentUserId={session?.user?.id ?? null} />
       </div>
     </div>
   );
