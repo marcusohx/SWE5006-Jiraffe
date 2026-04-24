@@ -1,15 +1,17 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 
+const DISPLAY_TIME_ZONE = "Asia/Singapore";
+
 const displayDateFormatter = new Intl.DateTimeFormat("en-GB", {
-  timeZone: "UTC",
+  timeZone: DISPLAY_TIME_ZONE,
   day: "2-digit",
   month: "2-digit",
   year: "numeric",
 });
 
 const dateTimeFormatter = new Intl.DateTimeFormat("en-GB", {
-  timeZone: "UTC",
+  timeZone: DISPLAY_TIME_ZONE,
   day: "2-digit",
   month: "2-digit",
   year: "numeric",

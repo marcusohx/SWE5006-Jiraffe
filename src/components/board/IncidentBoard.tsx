@@ -24,6 +24,34 @@ import {
   type DropTarget,
 } from "./board-dnd-utils";
 
+type DragResult = {
+  incidents: IncidentWithNames[];
+  updates: { status?: IncidentStatus; boardOrder?: number };
+};
+
+function resolveFinalDragResult(
+  snapshot: IncidentWithNames[],
+  activeId: string,
+  cachedTarget: DropTarget
+): DragResult | null {
+  const finalMove = moveIncidentInMemory({ incidents: snapshot, activeId, targetStatus: cachedTarget.targetStatus, targetIndex: cachedTarget.targetIndex });
+  if (!finalMove) return null;
+
+  const originalIncident = snapshot.find((i) => i.id === activeId);
+  const finalIncident = finalMove.incidents.find((i) => i.id === activeId);
+  if (!originalIncident || !finalIncident) return null;
+
+  const statusChanged = finalIncident.status !== originalIncident.status;
+  const orderChanged = finalIncident.boardOrder !== originalIncident.boardOrder;
+  if (!statusChanged && !orderChanged) return null;
+
+  const updates: { status?: IncidentStatus; boardOrder?: number } = {};
+  if (statusChanged) updates.status = finalIncident.status;
+  if (orderChanged) updates.boardOrder = finalIncident.boardOrder;
+
+  return { incidents: finalMove.incidents, updates };
+}
+
 const columnDescriptions: Record<IncidentStatus, string> = {
   Open: "Triaged and awaiting assignment.",
   "In Progress": "Actively being worked on by the team.",
@@ -184,9 +212,7 @@ export function IncidentBoard({ initialIncidents }: { initialIncidents: Incident
     lastPlacementKeyRef.current = null;
     lastDropTargetRef.current = null;
 
-    if (!snapshot) {
-      return;
-    }
+    if (!snapshot) return;
 
     if (!over || !cachedTarget) {
       incidentsRef.current = snapshot;
@@ -195,37 +221,12 @@ export function IncidentBoard({ initialIncidents }: { initialIncidents: Incident
       return;
     }
 
-    const finalMove = moveIncidentInMemory({
-      incidents: snapshot,
-      activeId,
-      targetStatus: cachedTarget.targetStatus,
-      targetIndex: cachedTarget.targetIndex,
-    });
+    const dragResult = resolveFinalDragResult(snapshot, activeId, cachedTarget);
+    const nextIncidents = dragResult ? dragResult.incidents : snapshot;
+    incidentsRef.current = nextIncidents;
+    setIncidents(nextIncidents);
 
-    if (!finalMove) {
-      incidentsRef.current = snapshot;
-      setIncidents(snapshot);
-      dragSnapshotRef.current = null;
-      return;
-    }
-
-    const originalIncident = snapshot.find((incident) => incident.id === activeId);
-    const finalIncident = finalMove.incidents.find((incident) => incident.id === activeId);
-
-    if (!originalIncident || !finalIncident) {
-      incidentsRef.current = snapshot;
-      setIncidents(snapshot);
-      dragSnapshotRef.current = null;
-      return;
-    }
-
-    const statusChanged = finalIncident.status !== originalIncident.status;
-    const orderChanged = finalIncident.boardOrder !== originalIncident.boardOrder;
-
-    incidentsRef.current = finalMove.incidents;
-    setIncidents(finalMove.incidents);
-
-    if (!statusChanged && !orderChanged) {
+    if (!dragResult) {
       dragSnapshotRef.current = null;
       return;
     }
@@ -233,18 +234,10 @@ export function IncidentBoard({ initialIncidents }: { initialIncidents: Incident
     setError(null);
 
     try {
-      const updates: { status?: IncidentStatus; boardOrder?: number } = {};
-      if (statusChanged) {
-        updates.status = finalIncident.status;
-      }
-      if (orderChanged) {
-        updates.boardOrder = finalIncident.boardOrder;
-      }
-
       const response = await fetch(`/api/incidents/${activeId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(updates),
+        body: JSON.stringify(dragResult.updates),
       });
       const payload = (await response.json()) as ApiSuccess<IncidentWithNames> | ApiError;
       if (!response.ok || !payload.success) {

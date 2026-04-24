@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { credentialsSchema } from "@/modules/auth/auth.dto";
+import { credentialsSchema, parseCredentials } from "@/modules/auth/auth.dto";
 
 describe("credentialsSchema", () => {
   it("accepts valid email and password", () => {
@@ -51,5 +51,25 @@ describe("credentialsSchema", () => {
   it("rejects empty object", () => {
     const result = credentialsSchema.safeParse({});
     expect(result.success).toBe(false);
+  });
+});
+
+describe("parseCredentials", () => {
+  it("returns parsed credentials for valid input", () => {
+    const result = parseCredentials({ email: "user@example.com", password: "password123" });
+    expect(result.email).toBe("user@example.com");
+    expect(result.password).toBe("password123");
+  });
+
+  it("throws for invalid email", () => {
+    expect(() => parseCredentials({ email: "bad-email", password: "password123" })).toThrow();
+  });
+
+  it("throws for short password", () => {
+    expect(() => parseCredentials({ email: "user@example.com", password: "short" })).toThrow();
+  });
+
+  it("throws for missing fields", () => {
+    expect(() => parseCredentials({})).toThrow();
   });
 });

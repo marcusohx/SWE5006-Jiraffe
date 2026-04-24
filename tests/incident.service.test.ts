@@ -14,6 +14,7 @@ import {
   listIncidents as listIncidentsRepo,
   updateIncidentById as updateIncidentByIdRepo,
 } from "@/modules/incident/incident.repository";
+import { logActivity } from "@/modules/activity/activity.service";
 
 vi.mock("@/modules/incident/incident.repository", () => ({
   createIncident: vi.fn(),
@@ -280,5 +281,170 @@ describe("incident.service — createIncident failure path", () => {
     await expect(
       createIncident({ teamId: 3, title: "Test", description: "Test", severity: "Low", status: "Open", assignedBy: "u2", assignedTo: "u3" }, "u1")
     ).rejects.toThrow("Failed to create incident");
+  });
+});
+
+const minimalRepo = {
+  id: "incident-1",
+  incidentId: 1,
+  teamId: 3,
+  title: "Test",
+  description: "Test",
+  severity: "Low" as const,
+  status: "Open" as const,
+  boardOrder: 1000,
+  createdBy: "u1",
+  assignedBy: "u2",
+  assignedTo: "u3",
+  resolvedOn: null,
+  closedOn: null,
+  comment: null,
+  createdAt: new Date("2026-01-01T00:00:00.000Z"),
+  updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+};
+
+describe("incident.service — createIncident activity logging", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("logs incident_created activity using createdByName when actorName is not provided", async () => {
+    vi.mocked(createIncidentRepo).mockResolvedValue(minimalRepo);
+    vi.mocked(findIncidentById).mockResolvedValue(makeIncident({ createdByName: "Creator" }));
+
+    await createIncident(
+      { teamId: 3, title: "Test", description: "Test", severity: "Low", assignedBy: "u2", assignedTo: "u3" },
+      "u1"
+    );
+
+    expect(logActivity).toHaveBeenCalledWith(
+      expect.objectContaining({ activityType: "incident_created", actorName: "Creator" })
+    );
+  });
+
+  it("uses provided actorName for activity logging instead of createdByName", async () => {
+    vi.mocked(createIncidentRepo).mockResolvedValue(minimalRepo);
+    vi.mocked(findIncidentById).mockResolvedValue(makeIncident({ createdByName: "Creator" }));
+
+    await createIncident(
+      { teamId: 3, title: "Test", description: "Test", severity: "Low", assignedBy: "u2", assignedTo: "u3" },
+      "u1",
+      "Custom Actor"
+    );
+
+    expect(logActivity).toHaveBeenCalledWith(
+      expect.objectContaining({ activityType: "incident_created", actorName: "Custom Actor" })
+    );
+  });
+});
+
+describe("incident.service — updateIncidentById activity logging", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("logs incident_status_changed when status is updated", async () => {
+    vi.mocked(updateIncidentByIdRepo).mockResolvedValue(makeIncident({ status: "Closed" }));
+
+    await updateIncidentById("incident-1", { status: "Closed" }, "u1", "Actor");
+
+    expect(logActivity).toHaveBeenCalledWith(
+      expect.objectContaining({ activityType: "incident_status_changed", metadata: { newStatus: "Closed" } })
+    );
+  });
+
+  it("logs incident_severity_changed when severity is updated", async () => {
+    vi.mocked(updateIncidentByIdRepo).mockResolvedValue(makeIncident());
+
+    await updateIncidentById("incident-1", { severity: "High" }, "u1", "Actor");
+
+    expect(logActivity).toHaveBeenCalledWith(
+      expect.objectContaining({ activityType: "incident_severity_changed", metadata: { newSeverity: "High" } })
+    );
+  });
+
+  it("logs incident_assigned when assignedTo is updated", async () => {
+    vi.mocked(updateIncidentByIdRepo).mockResolvedValue(makeIncident({ assignedToName: "New Assignee" }));
+
+    await updateIncidentById("incident-1", { assignedTo: "u4" }, "u1", "Actor");
+
+    expect(logActivity).toHaveBeenCalledWith(
+      expect.objectContaining({ activityType: "incident_assigned", metadata: { assignedTo: "u4" } })
+    );
+  });
+
+  it("logs incident_updated for other field changes", async () => {
+    vi.mocked(updateIncidentByIdRepo).mockResolvedValue(makeIncident());
+
+    await updateIncidentById("incident-1", { title: "New Title" }, "u1", "Actor");
+
+    expect(logActivity).toHaveBeenCalledWith(
+      expect.objectContaining({ activityType: "incident_updated", metadata: { fields: ["title"] } })
+    );
+  });
+
+  it("does not log activity when actorId is not provided", async () => {
+    vi.mocked(updateIncidentByIdRepo).mockResolvedValue(makeIncident());
+
+    await updateIncidentById("incident-1", { severity: "High" });
+
+    expect(logActivity).not.toHaveBeenCalled();
+  });
+
+  it("converts resolvedOn string to Date in repository call", async () => {
+    vi.mocked(updateIncidentByIdRepo).mockResolvedValue(makeIncident());
+
+    await updateIncidentById("incident-1", { resolvedOn: "2026-01-01T00:00:00.000Z" });
+
+    expect(updateIncidentByIdRepo).toHaveBeenCalledWith(
+      "incident-1",
+      expect.objectContaining({ resolvedOn: new Date("2026-01-01T00:00:00.000Z") })
+    );
+  });
+
+  it("passes null resolvedOn through to repository", async () => {
+    vi.mocked(updateIncidentByIdRepo).mockResolvedValue(makeIncident());
+
+    await updateIncidentById("incident-1", { resolvedOn: null });
+
+    expect(updateIncidentByIdRepo).toHaveBeenCalledWith(
+      "incident-1",
+      expect.objectContaining({ resolvedOn: null })
+    );
+  });
+});
+
+describe("incident.service — deleteIncidentById activity logging", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("logs incident_deleted when actorId, actorName, and incident are all present", async () => {
+    vi.mocked(findIncidentById).mockResolvedValue(makeIncident({ incidentId: 1, teamId: 3 }));
+    vi.mocked(deleteIncidentByIdRepo).mockResolvedValue(true);
+
+    await deleteIncidentById("incident-1", "u1", "Actor");
+
+    expect(logActivity).toHaveBeenCalledWith(
+      expect.objectContaining({ activityType: "incident_deleted", actorId: "u1", actorName: "Actor" })
+    );
+  });
+
+  it("does not log when incident is not found before deletion", async () => {
+    vi.mocked(findIncidentById).mockResolvedValue(null);
+    vi.mocked(deleteIncidentByIdRepo).mockResolvedValue(true);
+
+    await deleteIncidentById("incident-1", "u1", "Actor");
+
+    expect(logActivity).not.toHaveBeenCalled();
+  });
+
+  it("does not pre-fetch incident when actorId is absent", async () => {
+    vi.mocked(deleteIncidentByIdRepo).mockResolvedValue(true);
+
+    await deleteIncidentById("incident-1");
+
+    expect(findIncidentById).not.toHaveBeenCalled();
+    expect(logActivity).not.toHaveBeenCalled();
   });
 });

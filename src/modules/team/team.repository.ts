@@ -1,3 +1,4 @@
+import { randomInt } from "node:crypto";
 import mongoose from "mongoose";
 import { connectMongo } from "@/lib/db/mongodb";
 import { capitalizeName } from "@/lib/utils";
@@ -99,7 +100,7 @@ function generateTeamCode(): string {
   const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
   let code = "";
   for (let i = 0; i < 6; i += 1) {
-    code += alphabet[Math.floor(Math.random() * alphabet.length)];
+    code += alphabet[randomInt(alphabet.length)];
   }
   return code;
 }

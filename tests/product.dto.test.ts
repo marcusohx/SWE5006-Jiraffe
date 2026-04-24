@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { createProductSchema, updateProductSchema } from "@/modules/product/product.dto";
+import {
+  createProductSchema,
+  updateProductSchema,
+  parseCreateProduct,
+  parseUpdateProduct,
+  parseProductId,
+} from "@/modules/product/product.dto";
 
 describe("createProductSchema", () => {
   it("accepts valid name and price", () => {
@@ -67,5 +73,55 @@ describe("updateProductSchema", () => {
   it("rejects empty name", () => {
     const result = updateProductSchema.safeParse({ name: "" });
     expect(result.success).toBe(false);
+  });
+});
+
+describe("parseCreateProduct", () => {
+  it("returns parsed product for valid data", () => {
+    const result = parseCreateProduct({ name: "Widget", price: 9.99 });
+    expect(result.name).toBe("Widget");
+    expect(result.price).toBe(9.99);
+  });
+
+  it("throws for missing name", () => {
+    expect(() => parseCreateProduct({ price: 9.99 })).toThrow();
+  });
+
+  it("throws for negative price", () => {
+    expect(() => parseCreateProduct({ name: "Widget", price: -1 })).toThrow();
+  });
+
+  it("throws for missing price", () => {
+    expect(() => parseCreateProduct({ name: "Widget" })).toThrow();
+  });
+});
+
+describe("parseUpdateProduct", () => {
+  it("returns parsed input for valid data", () => {
+    const result = parseUpdateProduct({ name: "New Widget" });
+    expect(result.name).toBe("New Widget");
+  });
+
+  it("returns empty object for empty input (all optional)", () => {
+    const result = parseUpdateProduct({});
+    expect(result).toEqual({});
+  });
+
+  it("throws for negative price", () => {
+    expect(() => parseUpdateProduct({ price: -5 })).toThrow();
+  });
+});
+
+describe("parseProductId", () => {
+  it("returns the id string for valid input", () => {
+    expect(parseProductId("prod-123")).toBe("prod-123");
+  });
+
+  it("throws for empty string", () => {
+    expect(() => parseProductId("")).toThrow();
+  });
+
+  it("throws for non-string", () => {
+    expect(() => parseProductId(42)).toThrow();
   });
 });

@@ -14,6 +14,67 @@ import type { IncidentSeverity, IncidentStatus, IncidentWithNames } from "@/modu
 import type { ApiError, ApiSuccess } from "@/types/api";
 import type { TeamScopeOption, TeamOptionWithMembers } from "@/types/domain";
 
+function matchesSearchQuery(incident: IncidentWithNames, q: string): boolean {
+  return (
+    includesIgnoreCase(incident.title, q) ||
+    includesIgnoreCase(formatIncidentCode(incident.incidentId), q) ||
+    includesIgnoreCase(String(incident.incidentId), q) ||
+    includesIgnoreCase(incident.description, q) ||
+    includesIgnoreCase(incident.assignedToName, q) ||
+    includesIgnoreCase(incident.status, q) ||
+    includesIgnoreCase(incident.severity, q)
+  );
+}
+
+function matchesDateRange(updatedDate: Date, fromDate: Date | null, toDate: Date | null): boolean {
+  if (fromDate && updatedDate < fromDate) return false;
+  if (toDate && updatedDate > toDate) return false;
+  return true;
+}
+
+function matchesListFilter<T>(values: T[], value: T): boolean {
+  return values.length === 0 || values.includes(value);
+}
+
+function filterIncidents(
+  incidents: IncidentWithNames[],
+  searchQuery: string,
+  statusFilter: IncidentStatus[],
+  severityFilter: IncidentSeverity[],
+  updatedFrom: string,
+  updatedTo: string
+): IncidentWithNames[] {
+  const q = searchQuery.trim().toLowerCase();
+  const fromDate = updatedFrom ? new Date(`${updatedFrom}T00:00:00`) : null;
+  const toDate = updatedTo ? new Date(`${updatedTo}T23:59:59.999`) : null;
+
+  return incidents.filter((incident) => {
+    if (q && !matchesSearchQuery(incident, q)) return false;
+    if (!matchesListFilter(statusFilter, incident.status)) return false;
+    if (!matchesListFilter(severityFilter, incident.severity)) return false;
+    return matchesDateRange(new Date(incident.updatedAt), fromDate, toDate);
+  });
+}
+
+function sortIncidents(incidents: IncidentWithNames[], sort: SortState): IncidentWithNames[] {
+  if (!sort) return incidents;
+
+  const sorted = [...incidents];
+  sorted.sort((a, b) => {
+    let result = 0;
+    if (sort.column === "ticket") result = a.title.localeCompare(b.title);
+    if (sort.column === "status") result = statusOrder[a.status] - statusOrder[b.status];
+    if (sort.column === "severity") result = severityOrder[a.severity] - severityOrder[b.severity];
+    if (sort.column === "assignee") result = a.assignedToName.localeCompare(b.assignedToName);
+    if (sort.column === "updated") {
+      result = new Date(a.updatedAt).getTime() - new Date(b.updatedAt).getTime();
+    }
+    return sort.direction === "asc" ? result : -result;
+  });
+
+  return sorted;
+}
+
 export type { TeamScopeOption };
 
 export function TicketsTableSection({
@@ -66,78 +127,12 @@ export function TicketsTableSection({
     }
   }, [teamScopedRows, incidentToDelete]);
 
-  const filteredRows = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase();
-    const fromDate = updatedFrom ? new Date(`${updatedFrom}T00:00:00`) : null;
-    const toDate = updatedTo ? new Date(`${updatedTo}T23:59:59.999`) : null;
+  const filteredRows = useMemo(
+    () => filterIncidents(teamScopedRows, searchQuery, statusFilter, severityFilter, updatedFrom, updatedTo),
+    [teamScopedRows, searchQuery, statusFilter, severityFilter, updatedFrom, updatedTo]
+  );
 
-    return teamScopedRows.filter((incident) => {
-      const updatedDate = new Date(incident.updatedAt);
-
-      if (q) {
-        const matchesSearch =
-          includesIgnoreCase(incident.title, q) ||
-          includesIgnoreCase(formatIncidentCode(incident.incidentId), q) ||
-          includesIgnoreCase(String(incident.incidentId), q) ||
-          includesIgnoreCase(incident.description, q) ||
-          includesIgnoreCase(incident.assignedToName, q) ||
-          includesIgnoreCase(incident.status, q) ||
-          includesIgnoreCase(incident.severity, q);
-        if (!matchesSearch) {
-          return false;
-        }
-      }
-
-      if (statusFilter.length > 0 && !statusFilter.includes(incident.status)) {
-        return false;
-      }
-
-      if (severityFilter.length > 0 && !severityFilter.includes(incident.severity)) {
-        return false;
-      }
-
-      if (fromDate && updatedDate < fromDate) {
-        return false;
-      }
-
-      if (toDate && updatedDate > toDate) {
-        return false;
-      }
-
-      return true;
-    });
-  }, [teamScopedRows, searchQuery, statusFilter, severityFilter, updatedFrom, updatedTo]);
-
-  const visibleRows = useMemo(() => {
-    if (!sort) {
-      return filteredRows;
-    }
-
-    const sorted = [...filteredRows];
-    sorted.sort((a, b) => {
-      let result = 0;
-
-      if (sort.column === "ticket") {
-        result = a.title.localeCompare(b.title);
-      }
-      if (sort.column === "status") {
-        result = statusOrder[a.status] - statusOrder[b.status];
-      }
-      if (sort.column === "severity") {
-        result = severityOrder[a.severity] - severityOrder[b.severity];
-      }
-      if (sort.column === "assignee") {
-        result = a.assignedToName.localeCompare(b.assignedToName);
-      }
-      if (sort.column === "updated") {
-        result = new Date(a.updatedAt).getTime() - new Date(b.updatedAt).getTime();
-      }
-
-      return sort.direction === "asc" ? result : -result;
-    });
-
-    return sorted;
-  }, [filteredRows, sort]);
+  const visibleRows = useMemo(() => sortIncidents(filteredRows, sort), [filteredRows, sort]);
 
   const counts = useMemo(() => {
     return {

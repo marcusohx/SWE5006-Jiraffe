@@ -26,14 +26,16 @@ type TeamPayload = {
   isActive: boolean;
 };
 
-export function EditTeamModal() {
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
+async function fetchTeam(editId: string, signal: AbortSignal): Promise<TeamResponse> {
+  const response = await fetch(`/api/teams/${editId}`, { method: "GET", signal });
+  const payload = (await response.json()) as ApiSuccess<TeamResponse> | ApiError;
+  if (!response.ok || !payload.success) {
+    throw new Error(payload.success ? "Unable to load team." : payload.error);
+  }
+  return payload.data;
+}
 
-  const editId = searchParams.get("edit");
-  const open = Boolean(editId);
-
+function useLoadTeam(editId: string | null, open: boolean) {
   const [team, setTeam] = useState<TeamResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -45,36 +47,38 @@ export function EditTeamModal() {
       return;
     }
 
-    let isMounted = true;
-    const loadTeam = async () => {
+    const controller = new AbortController();
+
+    async function loadTeam() {
       setLoading(true);
       setError(null);
       try {
-        const response = await fetch(`/api/teams/${editId}`, { method: "GET" });
-        const payload = (await response.json()) as ApiSuccess<TeamResponse> | ApiError;
-        if (!response.ok || !payload.success) {
-          throw new Error(payload.success ? "Unable to load team." : payload.error);
-        }
-        if (isMounted) {
-          setTeam(payload.data);
-        }
+        const data = await fetchTeam(editId!, controller.signal);
+        setTeam(data);
       } catch (e) {
-        if (isMounted) {
-          setError(e instanceof Error ? e.message : "Unable to load team.");
-        }
+        if (e instanceof Error && e.name === "AbortError") return;
+        setError(e instanceof Error ? e.message : "Unable to load team.");
       } finally {
-        if (isMounted) {
-          setLoading(false);
-        }
+        if (!controller.signal.aborted) setLoading(false);
       }
-    };
+    }
 
     loadTeam();
-
-    return () => {
-      isMounted = false;
-    };
+    return () => controller.abort();
   }, [open, editId]);
+
+  return { team, loading, error };
+}
+
+export function EditTeamModal() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  const editId = searchParams.get("edit");
+  const open = Boolean(editId);
+
+  const { team, loading, error } = useLoadTeam(editId, open);
 
   const close = () => {
     const params = new URLSearchParams(searchParams.toString());

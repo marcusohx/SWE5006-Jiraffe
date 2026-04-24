@@ -23,6 +23,65 @@ type TeamPayload = {
   isActive: boolean;
 };
 
+function useLoadUsers() {
+  const [users, setUsers] = useState<UserOption[]>([]);
+  const [loadingUsers, setLoadingUsers] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    async function load() {
+      setLoadingUsers(true);
+      try {
+        const response = await fetch("/api/users", { method: "GET", signal: controller.signal });
+        const payload = (await response.json()) as ApiSuccess<UserOption[]> | ApiError;
+        if (!response.ok || !payload.success) {
+          throw new Error(payload.success ? "Unable to load users." : payload.error);
+        }
+        setUsers(payload.data);
+      } catch (e) {
+        if (e instanceof Error && e.name !== "AbortError") {
+          setLoadError(e.message);
+        }
+      } finally {
+        setLoadingUsers(false);
+      }
+    }
+
+    load();
+    return () => controller.abort();
+  }, []);
+
+  return { users, loadingUsers, loadError };
+}
+
+function UserDropdownContent({
+  loadingUsers,
+  availableUsers,
+  onSelect,
+}: {
+  loadingUsers: boolean;
+  availableUsers: UserOption[];
+  onSelect: (user: UserOption) => void;
+}) {
+  if (loadingUsers) {
+    return <DropdownItem disabled>Loading users...</DropdownItem>;
+  }
+  if (availableUsers.length === 0) {
+    return <DropdownItem disabled>No available users</DropdownItem>;
+  }
+  return (
+    <>
+      {availableUsers.map((user) => (
+        <DropdownItem key={user.id} onClick={() => onSelect(user)}>
+          {capitalizeName(user.name)}
+        </DropdownItem>
+      ))}
+    </>
+  );
+}
+
 export function TeamForm({
   submitLabel,
   onSubmit,
@@ -47,10 +106,9 @@ export function TeamForm({
   const [selectedUsers, setSelectedUsers] = useState<UserOption[]>(initialMembers ?? []);
   const [isActive, setIsActive] = useState(initialIsActive ?? true);
 
-  const [users, setUsers] = useState<UserOption[]>([]);
-  const [loadingUsers, setLoadingUsers] = useState(true);
+  const { users, loadingUsers, loadError } = useLoadUsers();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const initialMemberKey = useMemo(() => {
     if (!initialMembers) {
@@ -71,39 +129,6 @@ export function TeamForm({
     }
   }, [initialName, initialDescription, initialMembers, initialMemberKey, initialIsActive]);
 
-  useEffect(() => {
-    let isMounted = true;
-
-    const loadUsers = async () => {
-      setLoadingUsers(true);
-      try {
-        const response = await fetch("/api/users", { method: "GET" });
-        const payload = (await response.json()) as ApiSuccess<UserOption[]> | ApiError;
-        if (!response.ok || !payload.success) {
-          throw new Error(payload.success ? "Unable to load users." : payload.error);
-        }
-
-        if (isMounted) {
-          setUsers(payload.data);
-        }
-      } catch (e) {
-        if (isMounted) {
-          setError(e instanceof Error ? e.message : "Unable to load users.");
-        }
-      } finally {
-        if (isMounted) {
-          setLoadingUsers(false);
-        }
-      }
-    };
-
-    loadUsers();
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
-
   const selectedIds = useMemo(() => new Set(selectedUsers.map((user) => user.id)), [selectedUsers]);
 
   const availableUsers = useMemo(() => {
@@ -121,7 +146,7 @@ export function TeamForm({
     }
 
     setIsSubmitting(true);
-    setError(null);
+    setSubmitError(null);
 
     try {
       await onSubmit({
@@ -132,7 +157,7 @@ export function TeamForm({
       });
       onSuccess?.();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Unable to save team.");
+      setSubmitError(e instanceof Error ? e.message : "Unable to save team.");
     } finally {
       setIsSubmitting(false);
     }
@@ -209,25 +234,18 @@ export function TeamForm({
               </div>
             }
           >
-            {loadingUsers ? (
-              <DropdownItem disabled>Loading users...</DropdownItem>
-            ) : availableUsers.length === 0 ? (
-              <DropdownItem disabled>No available users</DropdownItem>
-            ) : (
-              availableUsers.map((user) => (
-                <DropdownItem
-                  key={user.id}
-                  onClick={() => setSelectedUsers((prev) => [...prev, user])}
-                >
-                  {capitalizeName(user.name)}
-                </DropdownItem>
-              ))
-            )}
+            <UserDropdownContent
+              loadingUsers={loadingUsers}
+              availableUsers={availableUsers}
+              onSelect={(user) => setSelectedUsers((prev) => [...prev, user])}
+            />
           </Dropdown>
         </div>
       </div>
 
-      {error ? <p className="text-sm text-red-600">{error}</p> : null}
+      {(submitError || loadError) ? (
+        <p className="text-sm text-red-600">{submitError ?? loadError}</p>
+      ) : null}
 
       <div className="flex justify-end">
         <Button type="submit" disabled={!canSubmit}>

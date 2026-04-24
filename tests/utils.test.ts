@@ -1,5 +1,19 @@
 import { describe, expect, it } from "vitest";
-import { capitalizeName, formatDisplayDate, formatIncidentCode, includesIgnoreCase } from "@/lib/utils";
+import { cn, capitalizeName, formatDisplayDate, formatIncidentCode, includesIgnoreCase } from "@/lib/utils";
+
+describe("cn", () => {
+  it("merges class names into a string", () => {
+    expect(cn("foo", "bar")).toBe("foo bar");
+  });
+
+  it("deduplicates conflicting tailwind classes", () => {
+    expect(cn("p-2", "p-4")).toBe("p-4");
+  });
+
+  it("ignores falsy values", () => {
+    expect(cn("a", false && "b", undefined, "c")).toBe("a c");
+  });
+});
 
 describe("capitalizeName", () => {
   it("capitalizes a single word", () => {
