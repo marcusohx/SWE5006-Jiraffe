@@ -22,7 +22,7 @@ export const options = {
   },
 };
 
-export default function () {
+export default function loadTest() {
   const pages = [
     { name: "Homepage", path: "/" },
     { name: "Login Page", path: "/login" },

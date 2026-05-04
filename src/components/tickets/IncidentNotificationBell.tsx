@@ -1,6 +1,6 @@
 "use client";
 
-import { Bell, Check, Loader2, Ticket, UserRoundX, X } from "lucide-react";
+import { Bell, Loader2, Ticket, UserRoundX, X } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";

@@ -9,7 +9,7 @@ import type {
   UpdateIncidentRepositoryInput,
 } from "@/modules/incident/incident.model";
 import { IncidentModel } from "@/modules/incident/incident.model";
-import { CounterModel, TeamModel, UserTeamModel } from "@/modules/team/team.model";
+import { CounterModel, UserTeamModel } from "@/modules/team/team.model";
 import "@/modules/user/user.model";
 
 type IncidentRef =

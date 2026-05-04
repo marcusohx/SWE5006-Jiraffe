@@ -52,7 +52,7 @@ export function Dropdown({
       return;
     }
 
-    updateMenuPosition();
+    const rafId = requestAnimationFrame(() => updateMenuPosition());
 
     const onMouseDown = (event: MouseEvent) => {
       const target = event.target as Node;
@@ -67,6 +67,7 @@ export function Dropdown({
     window.addEventListener("resize", onReposition);
     window.addEventListener("scroll", onReposition, true);
     return () => {
+      cancelAnimationFrame(rafId);
       document.removeEventListener("mousedown", onMouseDown);
       window.removeEventListener("resize", onReposition);
       window.removeEventListener("scroll", onReposition, true);
