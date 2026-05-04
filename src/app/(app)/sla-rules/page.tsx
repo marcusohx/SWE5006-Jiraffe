@@ -1,30 +1,10 @@
 import { AlarmClock, ShieldAlert, TimerReset } from "lucide-react";
+import { SlaRulesManager } from "@/components/sla/SlaRulesManager";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { listIncidentSlaPolicies } from "@/modules/incident/incident-sla";
+import { listSlaRules } from "@/modules/sla-rule/sla-rule.service";
 
-function formatMinutes(totalMinutes: number): string {
-  const days = Math.floor(totalMinutes / (24 * 60));
-  const hours = Math.floor((totalMinutes % (24 * 60)) / 60);
-  const minutes = totalMinutes % 60;
-  const parts: string[] = [];
-  if (days > 0) parts.push(`${days} day${days === 1 ? "" : "s"}`);
-  if (hours > 0) parts.push(`${hours} hour${hours === 1 ? "" : "s"}`);
-  if (minutes > 0 || parts.length === 0) parts.push(`${minutes} minute${minutes === 1 ? "" : "s"}`);
-  return parts.join(" ");
-}
-
-const SEVERITY_HANDLING: Record<string, string> = {
-  Critical: "Immediate ownership and same-shift resolution expected.",
-  High: "Priority handling with same-day follow-through.",
-  Medium: "Standard operational handling within one business day.",
-};
-
-function describeHandling(severity: string): string {
-  return SEVERITY_HANDLING[severity] ?? "Planned handling unless business impact increases.";
-}
-
-export default function SlaRulesPage() {
-  const rules = listIncidentSlaPolicies();
+export default async function SlaRulesPage() {
+  const rules = await listSlaRules();
 
   return (
     <div className="space-y-6">
@@ -65,46 +45,16 @@ export default function SlaRulesPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <ShieldAlert className="h-4 w-4" />
-              Breach handling
+              Strategy pattern
             </CardTitle>
           </CardHeader>
           <CardContent className="text-sm text-muted">
-            Response and resolution breaches are highlighted directly in the ticket table and notification panel.
+            Each severity uses a dedicated SLA strategy for deadline computation while this page manages the timing configuration applied by those strategies.
           </CardContent>
         </Card>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>SLA Matrix</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="overflow-hidden rounded-2xl border border-border">
-            <table className="w-full text-sm">
-              <thead className="bg-surface-muted text-left text-xs uppercase tracking-wide text-muted">
-                <tr>
-                  <th className="px-6 py-4">Severity</th>
-                  <th className="px-6 py-4">Response target</th>
-                  <th className="px-6 py-4">Resolution target</th>
-                  <th className="px-6 py-4">Expected handling</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border bg-white">
-                {rules.map((rule) => (
-                  <tr key={rule.severity}>
-                    <td className="px-6 py-4 font-semibold text-foreground">{rule.severity}</td>
-                    <td className="px-6 py-4 text-muted">{formatMinutes(rule.responseMinutes)}</td>
-                    <td className="px-6 py-4 text-muted">{formatMinutes(rule.resolutionMinutes)}</td>
-                    <td className="px-6 py-4 text-muted">
-                      {describeHandling(rule.severity)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </CardContent>
-      </Card>
+      <SlaRulesManager initialRules={rules} />
     </div>
   );
 }

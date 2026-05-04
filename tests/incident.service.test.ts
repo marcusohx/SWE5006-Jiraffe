@@ -88,8 +88,6 @@ const minimalRepo = {
   resolvedOn: null,
   closedOn: null,
   comment: null,
-  createdAt: new Date("2026-01-01T00:00:00.000Z"),
-  updatedAt: new Date("2026-01-01T00:00:00.000Z"),
   sla: {
     startedAt: new Date("2026-01-01T00:00:00.000Z"),
     responseDueAt: new Date("2026-01-01T00:15:00.000Z"),
@@ -100,6 +98,8 @@ const minimalRepo = {
     breachedResponse: false,
     breachedResolution: false,
   },
+  createdAt: new Date("2026-01-01T00:00:00.000Z"),
+  updatedAt: new Date("2026-01-01T00:00:00.000Z"),
 };
 
 describe("incident.service", () => {
@@ -171,7 +171,10 @@ describe("incident.service", () => {
     await updateIncidentById("incident-1", { severity: "High" }, "u1", "Actor", "user");
 
     expect(updateIncidentByIdRepo).toHaveBeenCalledWith("incident-1", expect.not.objectContaining({ closedOn: null }));
-    expect(updateIncidentByIdRepo).toHaveBeenCalledWith("incident-1", expect.not.objectContaining({ closedOn: expect.any(Date) }));
+    expect(updateIncidentByIdRepo).toHaveBeenCalledWith(
+      "incident-1",
+      expect.not.objectContaining({ closedOn: expect.any(Date) })
+    );
   });
 
   it("clears closedOn when status changes to In Progress", async () => {
@@ -193,7 +196,9 @@ describe("incident.service", () => {
   it("throws when incident not found", async () => {
     vi.mocked(findIncidentByIdForUser).mockResolvedValue(null);
 
-    await expect(updateIncidentById("incident-1", { severity: "High" }, "u1", "Actor", "user")).rejects.toThrow("Incident not found");
+    await expect(updateIncidentById("incident-1", { severity: "High" }, "u1", "Actor", "user")).rejects.toThrow(
+      "Incident not found"
+    );
   });
 
   it("throws when a non-assignee tries to close a ticket", async () => {
@@ -208,7 +213,9 @@ describe("incident.service", () => {
     vi.mocked(findIncidentById).mockResolvedValue(makeIncident({ assignedTo: "u3" }));
     vi.mocked(updateIncidentByIdRepo).mockResolvedValue(makeIncident({ status: "Closed" }));
 
-    await expect(updateIncidentById("incident-1", { status: "Closed" }, "admin-1", "Admin", "admin")).resolves.toBeTruthy();
+    await expect(
+      updateIncidentById("incident-1", { status: "Closed" }, "admin-1", "Admin", "admin")
+    ).resolves.toBeTruthy();
   });
 });
 
@@ -308,6 +315,17 @@ describe("incident.service - deleteIncidentById", () => {
 
     await expect(deleteIncidentById("nonexistent-id", "u1", "Actor", "user")).rejects.toThrow("Incident not found");
   });
+
+  it("logs incident_deleted when delete succeeds", async () => {
+    vi.mocked(findIncidentByIdForUser).mockResolvedValue(makeIncident({ incidentId: 1, teamId: 3 }));
+    vi.mocked(deleteIncidentByIdRepo).mockResolvedValue(true);
+
+    await deleteIncidentById("incident-1", "u1", "Actor", "user");
+
+    expect(logActivity).toHaveBeenCalledWith(
+      expect.objectContaining({ activityType: "incident_deleted", actorId: "u1", actorName: "Actor" })
+    );
+  });
 });
 
 describe("incident.service - createIncident failure path", () => {
@@ -320,12 +338,15 @@ describe("incident.service - createIncident failure path", () => {
     vi.mocked(findIncidentById).mockResolvedValue(null);
 
     await expect(
-      createIncident({ teamId: 3, title: "Test", description: "Test", severity: "Low", status: "Open", assignedBy: "u2", assignedTo: "u3" }, "u1")
+      createIncident(
+        { teamId: 3, title: "Test", description: "Test", severity: "Low", status: "Open", assignedBy: "u2", assignedTo: "u3" },
+        "u1"
+      )
     ).rejects.toThrow("Failed to create incident");
   });
 });
 
-describe("incident.service - activity logging", () => {
+describe("incident.service - createIncident activity logging", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -335,13 +356,34 @@ describe("incident.service - activity logging", () => {
     vi.mocked(findIncidentById).mockResolvedValue(makeIncident({ createdByName: "Creator" }));
 
     await createIncident(
-      { teamId: 3, title: "Test", description: "Test", severity: "Low", assignedBy: "u2", assignedTo: "u3" },
+      { teamId: 3, title: "Test", description: "Test", severity: "Low", status: "Open", assignedBy: "u2", assignedTo: "u3" },
       "u1"
     );
 
     expect(logActivity).toHaveBeenCalledWith(
       expect.objectContaining({ activityType: "incident_created", actorName: "Creator" })
     );
+  });
+
+  it("uses provided actorName for activity logging instead of createdByName", async () => {
+    vi.mocked(createIncidentRepo).mockResolvedValue(minimalRepo as never);
+    vi.mocked(findIncidentById).mockResolvedValue(makeIncident({ createdByName: "Creator" }));
+
+    await createIncident(
+      { teamId: 3, title: "Test", description: "Test", severity: "Low", status: "Open", assignedBy: "u2", assignedTo: "u3" },
+      "u1",
+      "Custom Actor"
+    );
+
+    expect(logActivity).toHaveBeenCalledWith(
+      expect.objectContaining({ activityType: "incident_created", actorName: "Custom Actor" })
+    );
+  });
+});
+
+describe("incident.service - updateIncidentById activity logging", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
   });
 
   it("logs incident_status_changed when status is updated", async () => {
@@ -352,6 +394,28 @@ describe("incident.service - activity logging", () => {
 
     expect(logActivity).toHaveBeenCalledWith(
       expect.objectContaining({ activityType: "incident_status_changed", metadata: { newStatus: "Closed" } })
+    );
+  });
+
+  it("logs incident_severity_changed when severity is updated", async () => {
+    vi.mocked(findIncidentByIdForUser).mockResolvedValue(makeIncident());
+    vi.mocked(updateIncidentByIdRepo).mockResolvedValue(makeIncident({ severity: "High" }));
+
+    await updateIncidentById("incident-1", { severity: "High" }, "u1", "Actor", "user");
+
+    expect(logActivity).toHaveBeenCalledWith(
+      expect.objectContaining({ activityType: "incident_severity_changed", metadata: { newSeverity: "High" } })
+    );
+  });
+
+  it("logs incident_assigned when assignedTo is updated", async () => {
+    vi.mocked(findIncidentByIdForUser).mockResolvedValue(makeIncident({ assignedTo: "u1" }));
+    vi.mocked(updateIncidentByIdRepo).mockResolvedValue(makeIncident({ assignedToName: "New Assignee" }));
+
+    await updateIncidentById("incident-1", { assignedTo: "u4" }, "u1", "Actor", "user");
+
+    expect(logActivity).toHaveBeenCalledWith(
+      expect.objectContaining({ activityType: "incident_assigned", metadata: { assignedTo: "u4" } })
     );
   });
 
@@ -380,10 +444,8 @@ describe("incident.service - acknowledgeIncident", () => {
     );
   });
 
-  it("throws when ticket is not Open", async () => {
-    vi.mocked(findIncidentByIdForUser).mockResolvedValue(
-      makeIncident({ assignedTo: "u1", status: "In Progress" })
-    );
+  it("throws when ticket is not open", async () => {
+    vi.mocked(findIncidentByIdForUser).mockResolvedValue(makeIncident({ assignedTo: "u1", status: "In Progress" }));
 
     await expect(acknowledgeIncident("incident-1", "u1", "Actor", "user")).rejects.toThrow(
       "Only open tickets can be acknowledged"
@@ -391,14 +453,10 @@ describe("incident.service - acknowledgeIncident", () => {
   });
 
   it("throws when repository returns null after update", async () => {
-    vi.mocked(findIncidentByIdForUser).mockResolvedValue(
-      makeIncident({ assignedTo: "u1", status: "Open" })
-    );
+    vi.mocked(findIncidentByIdForUser).mockResolvedValue(makeIncident({ assignedTo: "u1", status: "Open" }));
     vi.mocked(updateIncidentByIdRepo).mockResolvedValue(null);
 
-    await expect(acknowledgeIncident("incident-1", "u1", "Actor", "user")).rejects.toThrow(
-      "Incident not found"
-    );
+    await expect(acknowledgeIncident("incident-1", "u1", "Actor", "user")).rejects.toThrow("Incident not found");
   });
 
   it("updates ticket to In Progress when acknowledged", async () => {
@@ -423,7 +481,7 @@ describe("incident.service - reassignIncident", () => {
     vi.clearAllMocks();
   });
 
-  it("throws when non-admin tries to reassign someone else's ticket", async () => {
+  it("throws when actor is not current assignee", async () => {
     vi.mocked(findIncidentByIdForUser).mockResolvedValue(makeIncident({ assignedTo: "u3" }));
 
     await expect(reassignIncident("incident-1", "u4", "u1", "Actor", "user")).rejects.toThrow(
@@ -431,17 +489,15 @@ describe("incident.service - reassignIncident", () => {
     );
   });
 
-  it("throws when reassigning a Closed ticket", async () => {
-    vi.mocked(findIncidentByIdForUser).mockResolvedValue(
-      makeIncident({ assignedTo: "u1", status: "Closed" })
-    );
+  it("throws when ticket is closed", async () => {
+    vi.mocked(findIncidentByIdForUser).mockResolvedValue(makeIncident({ assignedTo: "u1", status: "Closed" }));
 
     await expect(reassignIncident("incident-1", "u4", "u1", "Actor", "user")).rejects.toThrow(
       "Closed tickets cannot be reassigned"
     );
   });
 
-  it("throws when reassigning to self", async () => {
+  it("throws when next assignee is the same as current assignee", async () => {
     vi.mocked(findIncidentByIdForUser).mockResolvedValue(makeIncident({ assignedTo: "u1" }));
 
     await expect(reassignIncident("incident-1", "u1", "u1", "Actor", "user")).rejects.toThrow(
@@ -453,16 +509,12 @@ describe("incident.service - reassignIncident", () => {
     vi.mocked(findIncidentByIdForUser).mockResolvedValue(makeIncident({ assignedTo: "u1" }));
     vi.mocked(updateIncidentByIdRepo).mockResolvedValue(null);
 
-    await expect(reassignIncident("incident-1", "u4", "u1", "Actor", "user")).rejects.toThrow(
-      "Incident not found"
-    );
+    await expect(reassignIncident("incident-1", "u4", "u1", "Actor", "user")).rejects.toThrow("Incident not found");
   });
 
-  it("reassigns and resets sla state when assignee is the current actor", async () => {
-    vi.mocked(findIncidentByIdForUser).mockResolvedValue(makeIncident({ assignedTo: "u1" }));
-    vi.mocked(updateIncidentByIdRepo).mockResolvedValue(
-      makeIncident({ assignedTo: "u4", assignedToName: "User Four" })
-    );
+  it("resets workflow fields on successful reassignment", async () => {
+    vi.mocked(findIncidentByIdForUser).mockResolvedValue(makeIncident({ assignedTo: "u1", status: "In Progress" }));
+    vi.mocked(updateIncidentByIdRepo).mockResolvedValue(makeIncident({ assignedTo: "u4", assignedToName: "New Assignee" }));
 
     const result = await reassignIncident("incident-1", "u4", "u1", "Actor", "user");
 
@@ -473,7 +525,10 @@ describe("incident.service - reassignIncident", () => {
         assignedTo: "u4",
         status: "Open",
         acknowledgedAt: null,
+        closedOn: null,
+        resolvedOn: null,
         slaState: "Running",
+        slaStoppedAt: null,
       })
     );
     expect(result.assignedTo).toBe("u4");
@@ -486,9 +541,7 @@ describe("incident.service - updateIncidentById SLA branches", () => {
   });
 
   it("auto-acknowledges when moving to In Progress without prior acknowledgment", async () => {
-    vi.mocked(findIncidentByIdForUser).mockResolvedValue(
-      makeIncident({ assignedTo: "u1", status: "Open" })
-    );
+    vi.mocked(findIncidentByIdForUser).mockResolvedValue(makeIncident({ assignedTo: "u1", status: "Open" }));
     vi.mocked(updateIncidentByIdRepo).mockResolvedValue(makeIncident({ status: "In Progress" }));
 
     await updateIncidentById("incident-1", { status: "In Progress" }, "u1", "Actor", "user");
@@ -500,9 +553,7 @@ describe("incident.service - updateIncidentById SLA branches", () => {
   });
 
   it("stops SLA and sets resolvedOn when closing", async () => {
-    vi.mocked(findIncidentByIdForUser).mockResolvedValue(
-      makeIncident({ assignedTo: "u1", status: "In Progress" })
-    );
+    vi.mocked(findIncidentByIdForUser).mockResolvedValue(makeIncident({ assignedTo: "u1", status: "In Progress" }));
     vi.mocked(updateIncidentByIdRepo).mockResolvedValue(makeIncident({ status: "Closed" }));
 
     await updateIncidentById("incident-1", { status: "Closed" }, "u1", "Actor", "user");
@@ -530,14 +581,9 @@ describe("incident.service - updateIncidentById SLA branches", () => {
         resolutionDueAt: expect.any(Date),
       })
     );
-    expect(logActivity).toHaveBeenCalledWith(
-      expect.objectContaining({
-        activityType: "incident_severity_changed",
-      })
-    );
   });
 
-  it("restarts SLA when reopening a Stopped ticket", async () => {
+  it("restarts SLA when reopening a stopped ticket", async () => {
     vi.mocked(findIncidentByIdForUser).mockResolvedValue(
       makeIncident({
         assignedTo: "u1",
@@ -561,7 +607,7 @@ describe("incident.service - updateIncidentById SLA branches", () => {
 
   it("clears SLA acknowledgment and reassigns when assignedTo changes", async () => {
     vi.mocked(findIncidentByIdForUser).mockResolvedValue(makeIncident({ assignedTo: "u1" }));
-    vi.mocked(updateIncidentByIdRepo).mockResolvedValue(makeIncident({ assignedTo: "u4" }));
+    vi.mocked(updateIncidentByIdRepo).mockResolvedValue(makeIncident({ assignedTo: "u4", assignedToName: "New Assignee" }));
 
     await updateIncidentById("incident-1", { assignedTo: "u4" }, "u1", "Actor", "user");
 
@@ -575,52 +621,13 @@ describe("incident.service - updateIncidentById SLA branches", () => {
         status: "Open",
       })
     );
-    expect(logActivity).toHaveBeenCalledWith(
-      expect.objectContaining({ activityType: "incident_assigned" })
-    );
   });
 
   it("rejects non-assignee non-admin moving ticket to In Progress", async () => {
     vi.mocked(findIncidentByIdForUser).mockResolvedValue(makeIncident({ assignedTo: "u3" }));
 
-    await expect(
-      updateIncidentById("incident-1", { status: "In Progress" }, "u1", "Actor", "user")
-    ).rejects.toThrow("Only the assigned user can move this ticket to In Progress");
-  });
-});
-
-describe("incident.service - reassignIncident", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
-  it("throws when actor is not current assignee", async () => {
-    vi.mocked(findIncidentByIdForUser).mockResolvedValue(makeIncident({ assignedTo: "u3" }));
-
-    await expect(reassignIncident("incident-1", "u4", "u1", "Actor", "user")).rejects.toThrow(
-      "Only the current assignee can reassign this ticket"
+    await expect(updateIncidentById("incident-1", { status: "In Progress" }, "u1", "Actor", "user")).rejects.toThrow(
+      "Only the assigned user can move this ticket to In Progress"
     );
-  });
-
-  it("resets workflow fields on successful reassignment", async () => {
-    vi.mocked(findIncidentByIdForUser).mockResolvedValue(makeIncident({ assignedTo: "u1", status: "In Progress" }));
-    vi.mocked(updateIncidentByIdRepo).mockResolvedValue(makeIncident({ assignedTo: "u4", assignedToName: "New Assignee" }));
-
-    const result = await reassignIncident("incident-1", "u4", "u1", "Actor", "user");
-
-    expect(updateIncidentByIdRepo).toHaveBeenCalledWith(
-      "incident-1",
-      expect.objectContaining({
-        assignedBy: "u1",
-        assignedTo: "u4",
-        status: "Open",
-        acknowledgedAt: null,
-        closedOn: null,
-        resolvedOn: null,
-        slaState: "Running",
-        slaStoppedAt: null,
-      })
-    );
-    expect(result.assignedTo).toBe("u4");
   });
 });
