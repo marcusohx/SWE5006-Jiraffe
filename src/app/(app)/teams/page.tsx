@@ -20,26 +20,24 @@ export default async function TeamsPage() {
   return (
     <div className="space-y-6">
       <Suspense>
-        <CreateTeamModal enabled={canManageTeams} />
+        <CreateTeamModal enabled={true} />
       </Suspense>
       <Suspense>
-        <EditTeamModal enabled={canManageTeams} />
+        <EditTeamModal enabled={true} />
       </Suspense>
       <section className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <p className="text-sm uppercase tracking-[0.2em] text-muted">Teams</p>
           <h1 className="mt-2 text-3xl font-semibold">Team Management</h1>
         </div>
-        {canManageTeams ? (
-          <div className="flex gap-2">
-            <Button size="sm" asChild>
-              <Link href="?createTeam=true">
-                <Plus className="h-4 w-4" />
-                Add Team
-              </Link>
-            </Button>
-          </div>
-        ) : null}
+        <div className="flex gap-2">
+          <Button size="sm" asChild>
+            <Link href="?createTeam=true">
+              <Plus className="h-4 w-4" />
+              Add Team
+            </Link>
+          </Button>
+        </div>
       </section>
 
       {teams.length === 0 ? (
