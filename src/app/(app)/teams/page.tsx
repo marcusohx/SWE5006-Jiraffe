@@ -20,7 +20,7 @@ export default async function TeamsPage() {
   return (
     <div className="space-y-6">
       <Suspense>
-        <CreateTeamModal enabled={canManageTeams} />
+        <CreateTeamModal enabled={true} />
       </Suspense>
       <Suspense>
         <EditTeamModal enabled={canManageTeams} />
