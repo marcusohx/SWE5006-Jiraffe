@@ -10,8 +10,7 @@ import {
 
 export async function GET() {
   try {
-    const user = requireSessionUser(await getServerSession(authOptions));
-    assertAdmin(user);
+    requireSessionUser(await getServerSession(authOptions));
     return await listUsersController();
   } catch (error) {
     return handleApiError(error);
