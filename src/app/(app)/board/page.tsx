@@ -12,7 +12,7 @@ export default async function BoardPage() {
   if (!session?.user?.id) redirect("/login");
 
   const [incidents, teams] = await Promise.all([
-    listIncidents(),
+    listIncidents(session.user.id, session.user.role),
     listTeams(session.user.id),
   ]);
 
@@ -22,8 +22,6 @@ export default async function BoardPage() {
       name: team.name,
     }))
     .sort((a, b) => a.name.localeCompare(b.name));
-  const scopedTeamIds = new Set(teamOptions.map((team) => team.teamId));
-  const scopedIncidents = incidents.filter((incident) => scopedTeamIds.has(incident.teamId));
 
   return (
     <div className="space-y-6">
@@ -36,7 +34,7 @@ export default async function BoardPage() {
       </div>
 
       <Suspense fallback={null}>
-        <TeamScopedIncidentBoard incidents={scopedIncidents} teamOptions={teamOptions} />
+        <TeamScopedIncidentBoard incidents={incidents} teamOptions={teamOptions} />
       </Suspense>
     </div>
   );

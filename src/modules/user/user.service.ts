@@ -1,3 +1,4 @@
+import { HttpError } from "@/lib/http-error";
 import bcrypt from "bcryptjs";
 import type { CreateUserInput, UpdateUserInput } from "@/modules/user/user.dto";
 import type { User } from "@/modules/user/user.model";
@@ -61,7 +62,15 @@ export async function registerUser(input: CreateUserInput): Promise<User> {
   return createUser({ ...input, role: DEFAULT_ROLE });
 }
 
-export async function updateUserById(id: string, input: UpdateUserInput): Promise<User> {
+export async function updateUserById(
+  id: string,
+  input: UpdateUserInput,
+  actor: { id: string; role: "user" | "admin" }
+): Promise<User> {
+  if (actor.role !== "admin" && input.role !== undefined) {
+    throw new HttpError(403, "Forbidden");
+  }
+
   const updates: {
     name?: string;
     role?: "user" | "admin";

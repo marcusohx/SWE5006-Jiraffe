@@ -67,9 +67,11 @@ export function IncidentReassignControl({
         align="right"
         trigger={
           trigger ?? (
-            <Button type="button" size="sm" variant="ghost">
-              <UserRoundX className="h-4 w-4" />
-              Reassign
+            <Button asChild size="sm" variant="ghost">
+              <span className="inline-flex items-center gap-2">
+                <UserRoundX className="h-4 w-4" />
+                Reassign
+              </span>
             </Button>
           )
         }

@@ -2,9 +2,11 @@
 
 import {
   createContext,
+  type CSSProperties,
   type ReactNode,
   useContext,
   useEffect,
+  useCallback,
   useMemo,
   useRef,
   useState,
@@ -27,12 +29,30 @@ export function Dropdown({
   align?: "left" | "right";
 }) {
   const [open, setOpen] = useState(false);
+  const [menuStyle, setMenuStyle] = useState<CSSProperties>({});
   const rootRef = useRef<HTMLDivElement>(null);
+
+  const updateMenuPosition = useCallback(() => {
+    const trigger = rootRef.current?.querySelector("button[aria-haspopup='menu']");
+    if (!(trigger instanceof HTMLElement)) {
+      return;
+    }
+
+    const rect = trigger.getBoundingClientRect();
+    const top = rect.bottom + 8;
+    setMenuStyle(
+      align === "right"
+        ? { position: "fixed", top, right: window.innerWidth - rect.right }
+        : { position: "fixed", top, left: rect.left }
+    );
+  }, [align]);
 
   useEffect(() => {
     if (!open) {
       return;
     }
+
+    updateMenuPosition();
 
     const onMouseDown = (event: MouseEvent) => {
       const target = event.target as Node;
@@ -41,9 +61,17 @@ export function Dropdown({
       }
     };
 
+    const onReposition = () => updateMenuPosition();
+
     document.addEventListener("mousedown", onMouseDown);
-    return () => document.removeEventListener("mousedown", onMouseDown);
-  }, [open]);
+    window.addEventListener("resize", onReposition);
+    window.addEventListener("scroll", onReposition, true);
+    return () => {
+      document.removeEventListener("mousedown", onMouseDown);
+      window.removeEventListener("resize", onReposition);
+      window.removeEventListener("scroll", onReposition, true);
+    };
+  }, [open, updateMenuPosition]);
 
   const contextValue = useMemo(() => ({ close: () => setOpen(false) }), [setOpen]);
 
@@ -62,9 +90,9 @@ export function Dropdown({
         {open ? (
           <div
             role="menu"
+            style={menuStyle}
             className={cn(
-              "absolute z-20 mt-2 min-w-[180px] rounded-xl border border-border bg-white p-1 shadow-[0_18px_40px_-30px_rgba(15,23,42,0.6)]",
-              align === "right" ? "right-0" : "left-0"
+              "z-50 max-h-[min(320px,calc(100vh-5rem))] min-w-[180px] max-w-[calc(100vw-2rem)] overflow-y-auto rounded-xl border border-border bg-white p-1 shadow-[0_18px_40px_-30px_rgba(15,23,42,0.6)]"
             )}
           >
             {children}

@@ -11,8 +11,8 @@ import {
   updateIncidentById,
 } from "@/modules/incident/incident.service";
 
-export async function listIncidentsController() {
-  const incidents = await listIncidents();
+export async function listIncidentsController(userId: string, role: "user" | "admin") {
+  const incidents = await listIncidents(userId, role);
   return ok(incidents);
 }
 
@@ -30,8 +30,8 @@ export async function createIncidentController(
   return ok(incident, 201);
 }
 
-export async function getIncidentByIdController(id: string) {
-  const incident = await getIncidentById(id);
+export async function getIncidentByIdController(id: string, userId: string, role: "user" | "admin") {
+  const incident = await getIncidentById(id, userId, role);
   return ok(incident);
 }
 
@@ -39,23 +39,30 @@ export async function updateIncidentByIdController(
   id: string,
   input: UpdateIncidentInput,
   userId: string,
-  userName: string
+  userName: string,
+  role: "user" | "admin"
 ) {
-  const incident = await updateIncidentById(id, input, userId, userName);
+  const incident = await updateIncidentById(id, input, userId, userName, role);
   return ok(incident);
 }
 
 export async function deleteIncidentByIdController(
   id: string,
   userId: string,
-  userName: string
+  userName: string,
+  role: "user" | "admin"
 ) {
-  await deleteIncidentById(id, userId, userName);
+  await deleteIncidentById(id, userId, userName, role);
   return ok({ deleted: true });
 }
 
-export async function acknowledgeIncidentController(id: string, userId: string, userName: string) {
-  const incident = await acknowledgeIncident(id, userId, userName);
+export async function acknowledgeIncidentController(
+  id: string,
+  userId: string,
+  userName: string,
+  role: "user" | "admin"
+) {
+  const incident = await acknowledgeIncident(id, userId, userName, role);
   return ok(incident);
 }
 
@@ -63,8 +70,9 @@ export async function reassignIncidentController(
   id: string,
   assignedTo: string,
   userId: string,
-  userName: string
+  userName: string,
+  role: "user" | "admin"
 ) {
-  const incident = await reassignIncident(id, assignedTo, userId, userName);
+  const incident = await reassignIncident(id, assignedTo, userId, userName, role);
   return ok(incident);
 }

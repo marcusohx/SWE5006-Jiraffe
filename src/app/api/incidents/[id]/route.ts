@@ -1,6 +1,6 @@
 import { getServerSession } from "next-auth";
+import { requireSessionUser } from "@/lib/authz";
 import { handleApiError } from "@/lib/api-error";
-import { fail } from "@/lib/api-response";
 import { authOptions } from "@/modules/auth/auth.options";
 import { parseIncidentId, parseUpdateIncident } from "@/modules/incident/incident.dto";
 import {
@@ -13,9 +13,10 @@ type Params = { params: Promise<{ id: string }> };
 
 export async function GET(_request: Request, { params }: Params) {
   try {
+    const user = requireSessionUser(await getServerSession(authOptions));
     const { id } = await params;
     const parsedId = parseIncidentId(id);
-    return await getIncidentByIdController(parsedId);
+    return await getIncidentByIdController(parsedId, user.id, user.role);
   } catch (error) {
     return handleApiError(error);
   }
@@ -23,15 +24,12 @@ export async function GET(_request: Request, { params }: Params) {
 
 export async function PUT(request: Request, { params }: Params) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-      return fail("Unauthorized", 401);
-    }
+    const user = requireSessionUser(await getServerSession(authOptions));
     const { id } = await params;
     const parsedId = parseIncidentId(id);
     const body = await request.json();
     const input = parseUpdateIncident(body);
-    return await updateIncidentByIdController(parsedId, input, session.user.id, session.user.name ?? "Unknown");
+    return await updateIncidentByIdController(parsedId, input, user.id, user.name ?? "Unknown", user.role);
   } catch (error) {
     return handleApiError(error);
   }
@@ -39,13 +37,10 @@ export async function PUT(request: Request, { params }: Params) {
 
 export async function DELETE(_request: Request, { params }: Params) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-      return fail("Unauthorized", 401);
-    }
+    const user = requireSessionUser(await getServerSession(authOptions));
     const { id } = await params;
     const parsedId = parseIncidentId(id);
-    return await deleteIncidentByIdController(parsedId, session.user.id, session.user.name ?? "Unknown");
+    return await deleteIncidentByIdController(parsedId, user.id, user.name ?? "Unknown", user.role);
   } catch (error) {
     return handleApiError(error);
   }

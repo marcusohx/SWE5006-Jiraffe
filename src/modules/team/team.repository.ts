@@ -149,7 +149,7 @@ export async function listTeams(userId: string): Promise<TeamWithMembers[]> {
   }).lean();
   const teamIds = userTeams.map((ut) => ut.team_id);
   if (teamIds.length === 0) return [];
-  const teams = await TeamModel.find({ team_id: { $in: teamIds } })
+  const teams = await TeamModel.find({ team_id: { $in: teamIds }, is_active: true })
     .sort({ createdAt: -1 })
     .lean();
   const memberMap = await listTeamMembers(teamIds);
@@ -200,7 +200,7 @@ export async function findTeamById(id: string): Promise<TeamWithMembers | null> 
   if (!mongoose.Types.ObjectId.isValid(id)) {
     return null;
   }
-  const team = await TeamModel.findById(id);
+  const team = await TeamModel.findOne({ _id: id, is_active: true });
   if (!team) {
     return null;
   }
@@ -254,3 +254,4 @@ export async function softDeleteTeamById(id: string): Promise<boolean> {
 
   return Boolean(updated);
 }
+

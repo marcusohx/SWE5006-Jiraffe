@@ -1,4 +1,5 @@
-﻿import mongoose from "mongoose";
+import mongoose from "mongoose";
+import { HttpError } from "@/lib/http-error";
 import { connectMongo } from "@/lib/db/mongodb";
 import type { CreateTeamInput, UpdateTeamInput } from "@/modules/team/team.dto";
 import type { TeamWithMembers } from "@/modules/team/team.model";
@@ -32,25 +33,39 @@ async function ensureUsersExist(memberIds: string[]): Promise<void> {
   }
 }
 
+function normalizeMemberIdsWithCreator(memberIds: string[], actorId: string): string[] {
+  return Array.from(new Set([...memberIds, actorId]));
+}
+
 export async function listTeams(userId: string): Promise<TeamWithMembers[]> {
   return listTeamsRepo(userId);
 }
 
-export async function getTeamById(id: string): Promise<TeamWithMembers> {
+export async function getTeamById(
+  id: string,
+  userId: string,
+  role: "user" | "admin"
+): Promise<TeamWithMembers> {
   const team = await findTeamById(id);
   if (!team) {
     throw new Error("Team not found");
   }
+  if (role !== "admin" && !team.members.some((member) => member.userId === userId)) {
+    throw new HttpError(403, "Forbidden");
+  }
   return team;
 }
 
-export async function createTeam(input: CreateTeamInput): Promise<TeamWithMembers> {
+export async function createTeam(
+  input: CreateTeamInput,
+  actorId: string
+): Promise<TeamWithMembers> {
   const name = input.name.trim();
   if (!name) {
     throw new Error("Team name is required");
   }
   const description = input.description?.trim() ? input.description.trim() : null;
-  const memberIds = normalizeMemberIds(input.memberIds ?? []);
+  const memberIds = normalizeMemberIdsWithCreator(normalizeMemberIds(input.memberIds ?? []), actorId);
   const isActive = input.isActive ?? true;
 
   await ensureUsersExist(memberIds);
@@ -65,8 +80,13 @@ export async function createTeam(input: CreateTeamInput): Promise<TeamWithMember
 
 export async function updateTeamById(
   id: string,
-  input: UpdateTeamInput
+  input: UpdateTeamInput,
+  role: "user" | "admin"
 ): Promise<TeamWithMembers> {
+  if (role !== "admin") {
+    throw new HttpError(403, "Forbidden");
+  }
+
   if (Object.keys(input).length === 0) {
     throw new Error("No updates provided");
   }

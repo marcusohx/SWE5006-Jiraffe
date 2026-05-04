@@ -24,12 +24,12 @@ type TeamPayload = {
   isActive: boolean;
 };
 
-export function CreateTeamModal() {
+export function CreateTeamModal({ enabled }: { enabled: boolean }) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  const open = searchParams.get("createTeam") === "true";
+  const open = enabled && searchParams.get("createTeam") === "true";
 
   const close = () => {
     const params = new URLSearchParams(searchParams.toString());
@@ -55,6 +55,10 @@ export function CreateTeamModal() {
       throw new Error(data.success ? "Unable to create team." : data.error);
     }
   };
+
+  if (!enabled) {
+    return null;
+  }
 
   return (
     <Modal open={open} onClose={close} title="Create Team">

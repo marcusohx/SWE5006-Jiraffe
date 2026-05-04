@@ -70,12 +70,12 @@ function useLoadTeam(editId: string | null, open: boolean) {
   return { team, loading, error };
 }
 
-export function EditTeamModal() {
+export function EditTeamModal({ enabled }: { enabled: boolean }) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  const editId = searchParams.get("edit");
+  const editId = enabled ? searchParams.get("edit") : null;
   const open = Boolean(editId);
 
   const { team, loading, error } = useLoadTeam(editId, open);
@@ -115,6 +115,10 @@ export function EditTeamModal() {
       email: member.email,
     }));
   }, [team?.members]);
+
+  if (!enabled) {
+    return null;
+  }
 
   return (
     <Modal open={open} onClose={close} title="Edit Team">

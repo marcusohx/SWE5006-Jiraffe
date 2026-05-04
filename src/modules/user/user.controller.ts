@@ -29,8 +29,12 @@ export async function getUserByIdController(id: string) {
   return ok(user);
 }
 
-export async function updateUserByIdController(id: string, input: UpdateUserInput) {
-  const user = await updateUserById(id, input);
+export async function updateUserByIdController(
+  id: string,
+  input: UpdateUserInput,
+  actor: { id: string; role: "user" | "admin" }
+) {
+  const user = await updateUserById(id, input, actor);
   return ok(user);
 }
 

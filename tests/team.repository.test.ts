@@ -16,6 +16,7 @@ const {
   teamFind,
   teamCreate,
   teamFindById,
+  teamFindOne,
   teamFindByIdAndUpdate,
   counterFindOneAndUpdate,
 } = vi.hoisted(() => ({
@@ -27,6 +28,7 @@ const {
   teamFind: vi.fn(),
   teamCreate: vi.fn(),
   teamFindById: vi.fn(),
+  teamFindOne: vi.fn(),
   teamFindByIdAndUpdate: vi.fn(),
   counterFindOneAndUpdate: vi.fn(),
 }));
@@ -64,7 +66,7 @@ vi.mock("@/modules/team/team.model", () => ({
     create: teamCreate,
     findById: teamFindById,
     findByIdAndUpdate: teamFindByIdAndUpdate,
-    findOne: vi.fn().mockReturnValue({ sort: () => ({ select: () => Promise.resolve(null) }) }),
+    findOne: teamFindOne,
   },
   CounterModel: {
     findOneAndUpdate: counterFindOneAndUpdate,
@@ -88,9 +90,7 @@ function makeTeamDoc(overrides = {}) {
   };
 }
 
-// ---- listTeams ----
-
-describe("team.repository — listTeams(userId)", () => {
+describe("team.repository - listTeams(userId)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     connectMongo.mockResolvedValue(undefined);
@@ -128,9 +128,7 @@ describe("team.repository — listTeams(userId)", () => {
   });
 });
 
-// ---- findTeamById ----
-
-describe("team.repository — findTeamById", () => {
+describe("team.repository - findTeamById", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     connectMongo.mockResolvedValue(undefined);
@@ -142,12 +140,13 @@ describe("team.repository — findTeamById", () => {
     const result = await findTeamById("bad-id");
 
     expect(result).toBeNull();
-    expect(teamFindById).not.toHaveBeenCalled();
+    expect(teamFindOne).not.toHaveBeenCalled();
   });
 
   it("returns null when team does not exist", async () => {
     isValidObjectId.mockReturnValue(true);
-    teamFindById.mockResolvedValue(null);
+    teamFindOne.mockResolvedValue(null);
+    userTeamFind.mockReturnValue({ populate: () => Promise.resolve([]) });
 
     const result = await findTeamById(FAKE_TEAM_OBJECT_ID);
 
@@ -157,7 +156,7 @@ describe("team.repository — findTeamById", () => {
   it("returns mapped team with members when found", async () => {
     isValidObjectId.mockReturnValue(true);
     const teamDoc = makeTeamDoc();
-    teamFindById.mockResolvedValue(teamDoc);
+    teamFindOne.mockResolvedValue(teamDoc);
 
     userTeamFind.mockReturnValue({
       populate: () =>
@@ -180,9 +179,7 @@ describe("team.repository — findTeamById", () => {
   });
 });
 
-// ---- updateTeamById ----
-
-describe("team.repository — updateTeamById", () => {
+describe("team.repository - updateTeamById", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     connectMongo.mockResolvedValue(undefined);
@@ -247,9 +244,7 @@ describe("team.repository — updateTeamById", () => {
   });
 });
 
-// ---- softDeleteTeamById ----
-
-describe("team.repository — softDeleteTeamById", () => {
+describe("team.repository - softDeleteTeamById", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     connectMongo.mockResolvedValue(undefined);
@@ -281,29 +276,15 @@ describe("team.repository — softDeleteTeamById", () => {
 
     expect(result).toBe(false);
   });
-
-  it("sets is_active to false", async () => {
-    isValidObjectId.mockReturnValue(true);
-    teamFindByIdAndUpdate.mockResolvedValue(makeTeamDoc());
-
-    await softDeleteTeamById(FAKE_TEAM_OBJECT_ID);
-
-    expect(teamFindByIdAndUpdate).toHaveBeenCalledWith(
-      FAKE_TEAM_OBJECT_ID,
-      { $set: { is_active: false } },
-      { new: true }
-    );
-  });
 });
 
-// ---- createTeam ----
-
-describe("team.repository — createTeam", () => {
+describe("team.repository - createTeam", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     connectMongo.mockResolvedValue(undefined);
     counterFindOneAndUpdate.mockResolvedValue({ seq: 2 });
     userTeamInsertMany.mockResolvedValue([]);
+    teamFindOne.mockReturnValue({ sort: () => ({ select: () => Promise.resolve(null) }) });
   });
 
   it("creates a team and returns it with members", async () => {

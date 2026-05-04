@@ -4,6 +4,13 @@ import GitHubProvider from "next-auth/providers/github";
 import { env } from "@/lib/config";
 import { parseCredentials } from "@/modules/auth/auth.dto";
 import { authenticateWithPassword } from "@/modules/auth/auth.service";
+import { findUserById } from "@/modules/user/user.repository";
+
+type AuthRole = "user" | "admin";
+
+function toAuthRole(role: unknown): AuthRole {
+  return role === "admin" ? "admin" : "user";
+}
 
 const providers: NonNullable<NextAuthOptions["providers"]> = [];
 
@@ -54,15 +61,20 @@ export const authOptions: NextAuthOptions = {
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
-        const role = (user as { role?: "user" | "admin" }).role;
-        token.role = role ?? "user";
+        token.role = toAuthRole((user as { role?: AuthRole }).role);
+        return token;
+      }
+
+      if (token.id) {
+        const currentUser = await findUserById(token.id);
+        token.role = toAuthRole(currentUser?.role);
       }
       return token;
     },
     async session({ session, token }) {
       if (session.user) {
         session.user.id = token.id as string;
-        session.user.role = (token.role as "user" | "admin") ?? "user";
+        session.user.role = toAuthRole(token.role);
       }
       return session;
     },

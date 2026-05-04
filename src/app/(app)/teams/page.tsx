@@ -15,28 +15,31 @@ export default async function TeamsPage() {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) redirect("/login");
   const teams = await listTeams(session.user.id);
+  const canManageTeams = session.user.role === "admin";
 
   return (
     <div className="space-y-6">
       <Suspense>
-        <CreateTeamModal />
+        <CreateTeamModal enabled={canManageTeams} />
       </Suspense>
       <Suspense>
-        <EditTeamModal />
+        <EditTeamModal enabled={canManageTeams} />
       </Suspense>
       <section className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <p className="text-sm uppercase tracking-[0.2em] text-muted">Teams</p>
           <h1 className="mt-2 text-3xl font-semibold">Team Management</h1>
         </div>
-        <div className="flex gap-2">
-          <Button size="sm" asChild>
-            <Link href="?createTeam=true">
-              <Plus className="h-4 w-4" />
-              Add Team
-            </Link>
-          </Button>
-        </div>
+        {canManageTeams ? (
+          <div className="flex gap-2">
+            <Button size="sm" asChild>
+              <Link href="?createTeam=true">
+                <Plus className="h-4 w-4" />
+                Add Team
+              </Link>
+            </Button>
+          </div>
+        ) : null}
       </section>
 
       {teams.length === 0 ? (
@@ -56,10 +59,11 @@ export default async function TeamsPage() {
             <CardTitle>Teams</CardTitle>
           </CardHeader>
           <CardContent>
-            <TeamsTableSection initialRows={teams} />
+            <TeamsTableSection initialRows={teams} canManage={canManageTeams} />
           </CardContent>
         </Card>
       )}
     </div>
   );
 }
+

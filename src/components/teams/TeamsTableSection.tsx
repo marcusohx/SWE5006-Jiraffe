@@ -19,7 +19,13 @@ import { formatDisplayDate } from "@/lib/utils";
 import type { TeamWithMembers } from "@/modules/team/team.model";
 import type { ApiError, ApiSuccess } from "@/types/api";
 
-export function TeamsTableSection({ initialRows }: { initialRows: TeamWithMembers[] }) {
+export function TeamsTableSection({
+  initialRows,
+  canManage,
+}: {
+  initialRows: TeamWithMembers[];
+  canManage: boolean;
+}) {
   const router = useRouter();
   const [rows, setRows] = useState<TeamWithMembers[]>(initialRows);
 
@@ -117,22 +123,26 @@ export function TeamsTableSection({ initialRows }: { initialRows: TeamWithMember
                       <Eye className="h-4 w-4" />
                     </Link>
                   </Button>
-                  <Button size="sm" variant="ghost" asChild>
-                    <Link href={`?edit=${team.id}`} aria-label={`Edit ${team.name}`}>
-                      <Pencil className="h-4 w-4" />
-                    </Link>
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => {
-                      setDeleteError(null);
-                      setTeamToDelete(team);
-                    }}
-                    aria-label={`Delete ${team.name}`}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                  {canManage ? (
+                    <>
+                      <Button size="sm" variant="ghost" asChild>
+                        <Link href={`?edit=${team.id}`} aria-label={`Edit ${team.name}`}>
+                          <Pencil className="h-4 w-4" />
+                        </Link>
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => {
+                          setDeleteError(null);
+                          setTeamToDelete(team);
+                        }}
+                        aria-label={`Delete ${team.name}`}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </>
+                  ) : null}
                 </div>
               </TableCell>
             </TableRow>
@@ -141,7 +151,7 @@ export function TeamsTableSection({ initialRows }: { initialRows: TeamWithMember
       </Table>
 
       <DeleteTeamConfirmModal
-        open={Boolean(teamToDelete)}
+        open={canManage && Boolean(teamToDelete)}
         team={teamToDelete}
         onClose={() => {
           if (!isDeleting) {

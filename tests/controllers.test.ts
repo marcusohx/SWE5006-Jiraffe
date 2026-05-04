@@ -106,9 +106,9 @@ describe("incident.controller - listIncidentsController", () => {
     const incidents = [fakeIncident()];
     vi.mocked(incidentService.listIncidents).mockResolvedValue(incidents as never);
 
-    const result = await listIncidentsController();
+    const result = await listIncidentsController("user-1", "user");
 
-    expect(incidentService.listIncidents).toHaveBeenCalledOnce();
+    expect(incidentService.listIncidents).toHaveBeenCalledWith("user-1", "user");
     expect(ok).toHaveBeenCalledWith(incidents);
     expect(result).toMatchObject({ success: true, data: incidents, status: 200 });
   });
@@ -160,9 +160,9 @@ describe("incident.controller - getIncidentByIdController", () => {
     const incident = fakeIncident();
     vi.mocked(incidentService.getIncidentById).mockResolvedValue(incident as never);
 
-    const result = await getIncidentByIdController(INCIDENT_ID);
+    const result = await getIncidentByIdController(INCIDENT_ID, "user-1", "user");
 
-    expect(incidentService.getIncidentById).toHaveBeenCalledWith(INCIDENT_ID);
+    expect(incidentService.getIncidentById).toHaveBeenCalledWith(INCIDENT_ID, "user-1", "user");
     expect(result).toMatchObject({ success: true, data: incident });
   });
 });
@@ -175,9 +175,9 @@ describe("incident.controller - updateIncidentByIdController", () => {
     vi.mocked(incidentService.updateIncidentById).mockResolvedValue(updated as never);
 
     const input = { title: "Updated" };
-    const result = await updateIncidentByIdController(INCIDENT_ID, input, "user-1", "Alice");
+    const result = await updateIncidentByIdController(INCIDENT_ID, input, "user-1", "Alice", "user");
 
-    expect(incidentService.updateIncidentById).toHaveBeenCalledWith(INCIDENT_ID, input, "user-1", "Alice");
+    expect(incidentService.updateIncidentById).toHaveBeenCalledWith(INCIDENT_ID, input, "user-1", "Alice", "user");
     expect(result).toMatchObject({ success: true, data: updated });
   });
 });
@@ -189,9 +189,9 @@ describe("incident.controller - acknowledgeIncidentController", () => {
     const incident = fakeIncident({ status: "In Progress" });
     vi.mocked(incidentService.acknowledgeIncident).mockResolvedValue(incident as never);
 
-    const result = await acknowledgeIncidentController(INCIDENT_ID, "user-1", "Alice");
+    const result = await acknowledgeIncidentController(INCIDENT_ID, "user-1", "Alice", "user");
 
-    expect(incidentService.acknowledgeIncident).toHaveBeenCalledWith(INCIDENT_ID, "user-1", "Alice");
+    expect(incidentService.acknowledgeIncident).toHaveBeenCalledWith(INCIDENT_ID, "user-1", "Alice", "user");
     expect(ok).toHaveBeenCalledWith(incident);
     expect(result).toMatchObject({ success: true, data: incident, status: 200 });
   });
@@ -204,9 +204,9 @@ describe("incident.controller - reassignIncidentController", () => {
     const incident = fakeIncident({ assignedTo: "user-2" });
     vi.mocked(incidentService.reassignIncident).mockResolvedValue(incident as never);
 
-    const result = await reassignIncidentController(INCIDENT_ID, "user-2", "user-1", "Alice");
+    const result = await reassignIncidentController(INCIDENT_ID, "user-2", "user-1", "Alice", "user");
 
-    expect(incidentService.reassignIncident).toHaveBeenCalledWith(INCIDENT_ID, "user-2", "user-1", "Alice");
+    expect(incidentService.reassignIncident).toHaveBeenCalledWith(INCIDENT_ID, "user-2", "user-1", "Alice", "user");
     expect(ok).toHaveBeenCalledWith(incident);
     expect(result).toMatchObject({ success: true, data: incident, status: 200 });
   });
@@ -218,9 +218,9 @@ describe("incident.controller - deleteIncidentByIdController", () => {
   it("calls deleteIncidentById and returns deleted:true", async () => {
     vi.mocked(incidentService.deleteIncidentById).mockResolvedValue(undefined as never);
 
-    const result = await deleteIncidentByIdController(INCIDENT_ID, "user-1", "Alice");
+    const result = await deleteIncidentByIdController(INCIDENT_ID, "user-1", "Alice", "user");
 
-    expect(incidentService.deleteIncidentById).toHaveBeenCalledWith(INCIDENT_ID, "user-1", "Alice");
+    expect(incidentService.deleteIncidentById).toHaveBeenCalledWith(INCIDENT_ID, "user-1", "Alice", "user");
     expect(ok).toHaveBeenCalledWith({ deleted: true });
     expect(result).toMatchObject({ success: true, data: { deleted: true } });
   });
@@ -248,9 +248,9 @@ describe("team.controller - createTeamController", () => {
     vi.mocked(teamService.createTeam).mockResolvedValue(team as never);
 
     const input = { name: "Engineering", isActive: true, memberIds: [] };
-    const result = await createTeamController(input);
+    const result = await createTeamController(input, USER_ID);
 
-    expect(teamService.createTeam).toHaveBeenCalledWith(input);
+    expect(teamService.createTeam).toHaveBeenCalledWith(input, USER_ID);
     expect(result).toMatchObject({ status: 201, data: team });
   });
 });
@@ -262,9 +262,9 @@ describe("team.controller - getTeamByIdController", () => {
     const team = fakeTeam();
     vi.mocked(teamService.getTeamById).mockResolvedValue(team as never);
 
-    const result = await getTeamByIdController(TEAM_ID);
+    const result = await getTeamByIdController(TEAM_ID, USER_ID, "user");
 
-    expect(teamService.getTeamById).toHaveBeenCalledWith(TEAM_ID);
+    expect(teamService.getTeamById).toHaveBeenCalledWith(TEAM_ID, USER_ID, "user");
     expect(result).toMatchObject({ success: true, data: team });
   });
 });
@@ -277,9 +277,9 @@ describe("team.controller - updateTeamByIdController", () => {
     vi.mocked(teamService.updateTeamById).mockResolvedValue(updated as never);
 
     const input = { name: "New Name" };
-    const result = await updateTeamByIdController(TEAM_ID, input);
+    const result = await updateTeamByIdController(TEAM_ID, input, "admin");
 
-    expect(teamService.updateTeamById).toHaveBeenCalledWith(TEAM_ID, input);
+    expect(teamService.updateTeamById).toHaveBeenCalledWith(TEAM_ID, input, "admin");
     expect(result).toMatchObject({ data: updated });
   });
 });
@@ -363,9 +363,9 @@ describe("user.controller - updateUserByIdController", () => {
     vi.mocked(userService.updateUserById).mockResolvedValue(updated as never);
 
     const input = { name: "New Name" };
-    const result = await updateUserByIdController(USER_ID, input);
+    const result = await updateUserByIdController(USER_ID, input, { id: USER_ID, role: "user" });
 
-    expect(userService.updateUserById).toHaveBeenCalledWith(USER_ID, input);
+    expect(userService.updateUserById).toHaveBeenCalledWith(USER_ID, input, { id: USER_ID, role: "user" });
     expect(result).toMatchObject({ data: updated });
   });
 });
@@ -453,3 +453,4 @@ describe("product.controller - deleteProductByIdController", () => {
     expect(result).toMatchObject({ data: { deleted: true } });
   });
 });
+

@@ -81,12 +81,12 @@ export default async function DashboardPage() {
   if (!session?.user?.id) redirect("/login");
 
   const [incidents, teams] = await Promise.all([
-    listIncidents(),
+    listIncidents(session.user.id, session.user.role),
     listTeams(session.user.id),
   ]);
 
   const teamIds = teams.map((t) => t.teamId);
-  const scopedIncidents = incidents.filter((incident) => teamIds.includes(incident.teamId));
+  const scopedIncidents = incidents;
   const spotlightTicket = scopedIncidents[0] ?? null;
 
   const activities = await listRecentActivities(teamIds, 3);
@@ -181,3 +181,4 @@ export default async function DashboardPage() {
     </div>
   );
 }
+
