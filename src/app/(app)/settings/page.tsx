@@ -1,9 +1,15 @@
+import Link from "next/link";
+import { getServerSession } from "next-auth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
+import { authOptions } from "@/modules/auth/auth.options";
 
-export default function SettingsPage() {
+export default async function SettingsPage() {
+  const session = await getServerSession(authOptions);
+  const canManageUsers = session?.user?.role === "admin";
+
   return (
     <div className="space-y-6">
       <div>
@@ -52,6 +58,20 @@ export default function SettingsPage() {
             </div>
           </CardContent>
         </Card>
+
+        {canManageUsers ? (
+          <Card>
+            <CardHeader>
+              <CardTitle>User Roles</CardTitle>
+              <CardDescription>Manage who can create teams and administer workspace data.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button variant="secondary" asChild>
+                <Link href="/settings/users">Manage Users</Link>
+              </Button>
+            </CardContent>
+          </Card>
+        ) : null}
       </div>
     </div>
   );

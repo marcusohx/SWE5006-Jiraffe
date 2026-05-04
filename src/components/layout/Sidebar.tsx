@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, KanbanSquare, Settings, Ticket, Sparkles, Users, AlarmClock } from "lucide-react";
+import { AlarmClock, KanbanSquare, LayoutDashboard, Settings, Sparkles, Ticket, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navItems = [
