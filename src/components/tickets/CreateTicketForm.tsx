@@ -130,7 +130,7 @@ export function CreateTicketForm({
       return;
     }
     if (!users.some((user) => user.id === assignedTo.id)) {
-      setAssignedTo(null);
+      queueMicrotask(() => setAssignedTo(null));
     }
   }, [users, assignedTo]);
 

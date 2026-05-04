@@ -121,12 +121,14 @@ export function TeamForm({
     if (initialName === undefined && initialDescription === undefined && initialMemberKey === null) {
       return;
     }
-    setName(initialName ?? "");
-    setDescription(initialDescription ?? "");
-    setSelectedUsers(initialMembers ?? []);
-    if (initialIsActive !== undefined) {
-      setIsActive(initialIsActive);
-    }
+    queueMicrotask(() => {
+      setName(initialName ?? "");
+      setDescription(initialDescription ?? "");
+      setSelectedUsers(initialMembers ?? []);
+      if (initialIsActive !== undefined) {
+        setIsActive(initialIsActive);
+      }
+    });
   }, [initialName, initialDescription, initialMembers, initialMemberKey, initialIsActive]);
 
   const selectedIds = useMemo(() => new Set(selectedUsers.map((user) => user.id)), [selectedUsers]);

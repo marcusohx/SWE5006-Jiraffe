@@ -42,8 +42,10 @@ function useLoadTeam(editId: string | null, open: boolean) {
 
   useEffect(() => {
     if (!open || !editId) {
-      setTeam(null);
-      setError(null);
+      queueMicrotask(() => {
+        setTeam(null);
+        setError(null);
+      });
       return;
     }
 

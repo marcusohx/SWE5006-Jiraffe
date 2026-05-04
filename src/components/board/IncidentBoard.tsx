@@ -123,8 +123,10 @@ export function IncidentBoard({ initialIncidents }: { initialIncidents: Incident
   };
 
   useEffect(() => {
-    setIncidents(initialIncidents);
-    incidentsRef.current = initialIncidents;
+    queueMicrotask(() => {
+      setIncidents(initialIncidents);
+      incidentsRef.current = initialIncidents;
+    });
   }, [initialIncidents]);
 
   useEffect(() => {

@@ -104,7 +104,7 @@ export function TicketsTableSection({
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
   useEffect(() => {
-    setRows(initialRows);
+    queueMicrotask(() => setRows(initialRows));
   }, [initialRows]);
 
   const teamScopedRows = useMemo(() => {
@@ -121,9 +121,11 @@ export function TicketsTableSection({
 
     const stillExists = teamScopedRows.some((row) => row.id === incidentToDelete.id);
     if (!stillExists) {
-      setIncidentToDelete(null);
-      setDeleteError(null);
-      setIsDeleting(false);
+      queueMicrotask(() => {
+        setIncidentToDelete(null);
+        setDeleteError(null);
+        setIsDeleting(false);
+      });
     }
   }, [teamScopedRows, incidentToDelete]);
 

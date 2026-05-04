@@ -34,7 +34,7 @@ export function TeamsTableSection({
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
   useEffect(() => {
-    setRows(initialRows);
+    queueMicrotask(() => setRows(initialRows));
   }, [initialRows]);
 
   const onConfirmDelete = async () => {
