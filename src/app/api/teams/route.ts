@@ -1,5 +1,5 @@
 import { getServerSession } from "next-auth";
-import { assertAdmin, requireSessionUser } from "@/lib/authz";
+import { requireSessionUser } from "@/lib/authz";
 import { handleApiError } from "@/lib/api-error";
 import { authOptions } from "@/modules/auth/auth.options";
 import { parseCreateTeam } from "@/modules/team/team.dto";
@@ -17,7 +17,6 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const user = requireSessionUser(await getServerSession(authOptions));
-    assertAdmin(user);
     const body = await request.json();
     const input = parseCreateTeam(body);
     return await createTeamController(input, user.id);
