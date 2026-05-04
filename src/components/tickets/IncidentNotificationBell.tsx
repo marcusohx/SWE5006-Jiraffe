@@ -2,7 +2,7 @@
 
 import { Bell, Loader2, Ticket, UserRoundX, X } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { IncidentAcknowledgeButton } from "@/components/tickets/IncidentAcknowledgeButton";
 import { IncidentReassignControl } from "@/components/tickets/IncidentReassignControl";
@@ -30,6 +30,23 @@ type InboxItem = {
   availableAssignees: { id: string; name: string; email: string }[];
 };
 
+async function fetchInbox(signal: AbortSignal): Promise<InboxItem[]> {
+  const response = await fetch("/api/incidents/inbox", { method: "GET", cache: "no-store", signal });
+  const payload = (await response.json()) as ApiSuccess<InboxItem[]> | ApiError;
+  if (!response.ok || !payload.success) {
+    const message = payload.success ? "Unable to load notifications." : payload.error;
+    throw new Error(message);
+  }
+  return payload.data;
+}
+
+function toErrorMessage(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message;
+  }
+  return "Unable to load notifications.";
+}
+
 export function IncidentNotificationBell() {
   const router = useRouter();
   const panelRef = useRef<HTMLDivElement>(null);
@@ -38,60 +55,50 @@ export function IncidentNotificationBell() {
   const [items, setItems] = useState<InboxItem[]>([]);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    let isMounted = true;
-
-    const loadInbox = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const response = await fetch("/api/incidents/inbox", { method: "GET", cache: "no-store" });
-        const payload = (await response.json()) as ApiSuccess<InboxItem[]> | ApiError;
-        if (!response.ok || !payload.success) {
-          throw new Error(payload.success ? "Unable to load notifications." : payload.error);
-        }
-        if (isMounted) {
-          setItems(payload.data);
-        }
-      } catch (e) {
-        if (isMounted) {
-          setError(e instanceof Error ? e.message : "Unable to load notifications.");
-        }
-      } finally {
-        if (isMounted) {
-          setLoading(false);
-        }
+  const loadInbox = useCallback(async (signal: AbortSignal) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await fetchInbox(signal);
+      setItems(data);
+    } catch (e) {
+      if (signal.aborted) return;
+      setError(toErrorMessage(e));
+    } finally {
+      if (!signal.aborted) {
+        setLoading(false);
       }
+    }
+  }, []);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const trigger = () => {
+      void loadInbox(controller.signal);
     };
 
-    void loadInbox();
-
-    const onRefresh = () => {
-      void loadInbox();
-    };
+    trigger();
 
     const onVisibilityChange = () => {
       if (document.visibilityState === "visible") {
-        void loadInbox();
+        trigger();
       }
     };
 
-    const intervalId = window.setInterval(() => {
-      void loadInbox();
-    }, 15000);
+    const intervalId = window.setInterval(trigger, 15000);
 
-    window.addEventListener("incident-inbox-refresh", onRefresh);
-    window.addEventListener("focus", onRefresh);
+    window.addEventListener("incident-inbox-refresh", trigger);
+    window.addEventListener("focus", trigger);
     document.addEventListener("visibilitychange", onVisibilityChange);
 
     return () => {
-      isMounted = false;
+      controller.abort();
       window.clearInterval(intervalId);
-      window.removeEventListener("incident-inbox-refresh", onRefresh);
-      window.removeEventListener("focus", onRefresh);
+      window.removeEventListener("incident-inbox-refresh", trigger);
+      window.removeEventListener("focus", trigger);
       document.removeEventListener("visibilitychange", onVisibilityChange);
     };
-  }, []);
+  }, [loadInbox]);
 
   useEffect(() => {
     if (!open) {

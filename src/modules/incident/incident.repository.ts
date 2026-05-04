@@ -338,6 +338,51 @@ export async function listIncidentInboxForUser(userId: string): Promise<Incident
   }));
 }
 
+const SIMPLE_UPDATE_FIELDS: ReadonlyArray<{
+  input: keyof UpdateIncidentRepositoryInput;
+  mongo: string;
+}> = [
+  { input: "title", mongo: "title" },
+  { input: "description", mongo: "description" },
+  { input: "severity", mongo: "severity" },
+  { input: "status", mongo: "status" },
+  { input: "boardOrder", mongo: "board_order" },
+  { input: "resolvedOn", mongo: "resolved_on" },
+  { input: "closedOn", mongo: "closed_on" },
+  { input: "comment", mongo: "comment" },
+  { input: "acknowledgedAt", mongo: "acknowledged_at" },
+  { input: "slaState", mongo: "sla_state" },
+  { input: "slaStoppedAt", mongo: "sla_stopped_at" },
+  { input: "responseDueAt", mongo: "response_due_at" },
+  { input: "resolutionDueAt", mongo: "resolution_due_at" },
+];
+
+function buildSimpleMongoUpdates(updates: UpdateIncidentRepositoryInput): Record<string, unknown> {
+  const mongoUpdates: Record<string, unknown> = {};
+  for (const field of SIMPLE_UPDATE_FIELDS) {
+    const value = updates[field.input];
+    if (value !== undefined) {
+      mongoUpdates[field.mongo] = value;
+    }
+  }
+  if (updates.assignedBy !== undefined) {
+    mongoUpdates.assigned_by = toObjectId(updates.assignedBy, "Assigned by");
+  }
+  return mongoUpdates;
+}
+
+async function applyAssignedToUpdate(
+  mongoUpdates: Record<string, unknown>,
+  assignedTo: string,
+  teamId: number
+): Promise<void> {
+  const member = await isUserInTeam(assignedTo, teamId);
+  if (!member) {
+    throw new Error("Cannot reassign incident to a user from a different team");
+  }
+  mongoUpdates.assigned_to = toObjectId(assignedTo, "Assigned to");
+}
+
 export async function updateIncidentById(
   id: string,
   updates: UpdateIncidentRepositoryInput
@@ -352,28 +397,10 @@ export async function updateIncidentById(
     return null;
   }
 
-  const mongoUpdates: Record<string, unknown> = {};
-  if (updates.title !== undefined) mongoUpdates.title = updates.title;
-  if (updates.description !== undefined) mongoUpdates.description = updates.description;
-  if (updates.severity !== undefined) mongoUpdates.severity = updates.severity;
-  if (updates.status !== undefined) mongoUpdates.status = updates.status;
-  if (updates.boardOrder !== undefined) mongoUpdates.board_order = updates.boardOrder;
-  if (updates.assignedBy !== undefined) mongoUpdates.assigned_by = toObjectId(updates.assignedBy, "Assigned by");
+  const mongoUpdates = buildSimpleMongoUpdates(updates);
   if (updates.assignedTo !== undefined) {
-    const member = await isUserInTeam(updates.assignedTo, existing.team_id);
-    if (!member) {
-      throw new Error("Cannot reassign incident to a user from a different team");
-    }
-    mongoUpdates.assigned_to = toObjectId(updates.assignedTo, "Assigned to");
+    await applyAssignedToUpdate(mongoUpdates, updates.assignedTo, existing.team_id);
   }
-  if (updates.resolvedOn !== undefined) mongoUpdates.resolved_on = updates.resolvedOn;
-  if (updates.closedOn !== undefined) mongoUpdates.closed_on = updates.closedOn;
-  if (updates.comment !== undefined) mongoUpdates.comment = updates.comment;
-  if (updates.acknowledgedAt !== undefined) mongoUpdates.acknowledged_at = updates.acknowledgedAt;
-  if (updates.slaState !== undefined) mongoUpdates.sla_state = updates.slaState;
-  if (updates.slaStoppedAt !== undefined) mongoUpdates.sla_stopped_at = updates.slaStoppedAt;
-  if (updates.responseDueAt !== undefined) mongoUpdates.response_due_at = updates.responseDueAt;
-  if (updates.resolutionDueAt !== undefined) mongoUpdates.resolution_due_at = updates.resolutionDueAt;
 
   const updated = await IncidentModel.findByIdAndUpdate(
     id,

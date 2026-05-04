@@ -105,6 +105,94 @@ export async function createIncident(
   return populated;
 }
 
+function applyClosedOnDefaults(input: UpdateIncidentInput): UpdateIncidentInput {
+  const updates: UpdateIncidentInput = { ...input };
+  if (input.status === "Closed" && !input.closedOn) {
+    updates.closedOn = new Date().toISOString();
+  }
+  if (input.status === "Open" || input.status === "In Progress") {
+    updates.closedOn = null;
+  }
+  return updates;
+}
+
+function assertStatusAuthorized(
+  updates: UpdateIncidentInput,
+  existing: IncidentWithNames,
+  actorId: string,
+  role: "user" | "admin"
+): void {
+  if (role === "admin" || existing.assignedTo === actorId) {
+    return;
+  }
+  if (updates.status === "Closed") {
+    throw new Error("Only the assigned user can close this ticket");
+  }
+  if (updates.status === "In Progress") {
+    throw new Error("Only the assigned user can move this ticket to In Progress");
+  }
+}
+
+function applyAssignmentSideEffects(
+  repositoryUpdates: UpdateIncidentRepositoryInput,
+  updates: UpdateIncidentInput,
+  existing: IncidentWithNames,
+  actorId: string
+): void {
+  if (updates.assignedTo === undefined || updates.assignedTo === existing.assignedTo) {
+    return;
+  }
+  repositoryUpdates.assignedBy = actorId;
+  repositoryUpdates.acknowledgedAt = null;
+  repositoryUpdates.slaState = "Running";
+  repositoryUpdates.slaStoppedAt = null;
+  repositoryUpdates.resolvedOn = null;
+  repositoryUpdates.closedOn = null;
+  if (updates.status === undefined) {
+    repositoryUpdates.status = "Open";
+  }
+}
+
+function applySeveritySideEffects(
+  repositoryUpdates: UpdateIncidentRepositoryInput,
+  updates: UpdateIncidentInput,
+  existing: IncidentWithNames
+): void {
+  if (updates.severity === undefined) {
+    return;
+  }
+  const nextSla = recomputeIncidentSlaSnapshot(updates.severity, {
+    startedAt: existing.sla.startedAt,
+    acknowledgedAt: existing.sla.acknowledgedAt,
+    state: existing.sla.state,
+    stoppedAt: existing.sla.stoppedAt,
+  });
+  repositoryUpdates.responseDueAt = nextSla.responseDueAt;
+  repositoryUpdates.resolutionDueAt = nextSla.resolutionDueAt;
+}
+
+function applyStatusSideEffects(
+  repositoryUpdates: UpdateIncidentRepositoryInput,
+  updates: UpdateIncidentInput,
+  existing: IncidentWithNames
+): void {
+  if (updates.status === "In Progress" && !existing.sla.acknowledgedAt) {
+    repositoryUpdates.acknowledgedAt = new Date();
+  }
+  if (updates.status === "Closed") {
+    repositoryUpdates.slaState = "Stopped";
+    repositoryUpdates.slaStoppedAt = new Date();
+    if (repositoryUpdates.resolvedOn === undefined) {
+      repositoryUpdates.resolvedOn = new Date();
+    }
+  }
+  const reopening = updates.status === "Open" || updates.status === "In Progress";
+  if (reopening && existing.sla.state === "Stopped") {
+    repositoryUpdates.slaState = "Running";
+    repositoryUpdates.slaStoppedAt = null;
+  }
+}
+
 export async function updateIncidentById(
   id: string,
   input: UpdateIncidentInput,
@@ -117,22 +205,9 @@ export async function updateIncidentById(
   }
 
   const existing = await getIncidentById(id, actorId, role);
+  const updates = applyClosedOnDefaults(input);
 
-  const updates: UpdateIncidentInput = { ...input };
-  if (input.status === "Closed" && !input.closedOn) {
-    updates.closedOn = new Date().toISOString();
-  }
-  if (input.status === "Open" || input.status === "In Progress") {
-    updates.closedOn = null;
-  }
-
-  if (updates.status === "Closed" && role !== "admin" && existing.assignedTo !== actorId) {
-    throw new Error("Only the assigned user can close this ticket");
-  }
-
-  if (updates.status === "In Progress" && role !== "admin" && existing.assignedTo !== actorId) {
-    throw new Error("Only the assigned user can move this ticket to In Progress");
-  }
+  assertStatusAuthorized(updates, existing, actorId, role);
 
   const repositoryUpdates: UpdateIncidentRepositoryInput = {
     ...updates,
@@ -140,45 +215,9 @@ export async function updateIncidentById(
     closedOn: toOptionalDate(updates.closedOn),
   };
 
-  if (updates.assignedTo !== undefined && updates.assignedTo !== existing.assignedTo) {
-    repositoryUpdates.assignedBy = actorId;
-    repositoryUpdates.acknowledgedAt = null;
-    repositoryUpdates.slaState = "Running";
-    repositoryUpdates.slaStoppedAt = null;
-    repositoryUpdates.resolvedOn = null;
-    repositoryUpdates.closedOn = null;
-    if (updates.status === undefined) {
-      repositoryUpdates.status = "Open";
-    }
-  }
-
-  if (updates.severity !== undefined) {
-    const nextSla = recomputeIncidentSlaSnapshot(updates.severity, {
-      startedAt: existing.sla.startedAt,
-      acknowledgedAt: existing.sla.acknowledgedAt,
-      state: existing.sla.state,
-      stoppedAt: existing.sla.stoppedAt,
-    });
-    repositoryUpdates.responseDueAt = nextSla.responseDueAt;
-    repositoryUpdates.resolutionDueAt = nextSla.resolutionDueAt;
-  }
-
-  if (updates.status === "In Progress" && !existing.sla.acknowledgedAt) {
-    repositoryUpdates.acknowledgedAt = new Date();
-  }
-
-  if (updates.status === "Closed") {
-    repositoryUpdates.slaState = "Stopped";
-    repositoryUpdates.slaStoppedAt = new Date();
-    if (repositoryUpdates.resolvedOn === undefined) {
-      repositoryUpdates.resolvedOn = new Date();
-    }
-  }
-
-  if ((updates.status === "Open" || updates.status === "In Progress") && existing.sla.state === "Stopped") {
-    repositoryUpdates.slaState = "Running";
-    repositoryUpdates.slaStoppedAt = null;
-  }
+  applyAssignmentSideEffects(repositoryUpdates, updates, existing, actorId);
+  applySeveritySideEffects(repositoryUpdates, updates, existing);
+  applyStatusSideEffects(repositoryUpdates, updates, existing);
 
   const incident = await updateIncidentByIdRepo(id, repositoryUpdates);
   if (!incident) {

@@ -13,6 +13,16 @@ function formatMinutes(totalMinutes: number): string {
   return parts.join(" ");
 }
 
+const SEVERITY_HANDLING: Record<string, string> = {
+  Critical: "Immediate ownership and same-shift resolution expected.",
+  High: "Priority handling with same-day follow-through.",
+  Medium: "Standard operational handling within one business day.",
+};
+
+function describeHandling(severity: string): string {
+  return SEVERITY_HANDLING[severity] ?? "Planned handling unless business impact increases.";
+}
+
 export default function SlaRulesPage() {
   const rules = listIncidentSlaPolicies();
 
@@ -86,13 +96,7 @@ export default function SlaRulesPage() {
                     <td className="px-6 py-4 text-muted">{formatMinutes(rule.responseMinutes)}</td>
                     <td className="px-6 py-4 text-muted">{formatMinutes(rule.resolutionMinutes)}</td>
                     <td className="px-6 py-4 text-muted">
-                      {rule.severity === "Critical"
-                        ? "Immediate ownership and same-shift resolution expected."
-                        : rule.severity === "High"
-                          ? "Priority handling with same-day follow-through."
-                          : rule.severity === "Medium"
-                            ? "Standard operational handling within one business day."
-                            : "Planned handling unless business impact increases."}
+                      {describeHandling(rule.severity)}
                     </td>
                   </tr>
                 ))}

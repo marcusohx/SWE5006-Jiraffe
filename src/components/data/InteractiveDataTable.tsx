@@ -34,6 +34,16 @@ function SortIcon({ active, direction }: { active: boolean; direction?: SortDire
   return <ArrowDown className="h-4 w-4" />;
 }
 
+function rowBreachClass(sla: IncidentWithNames["sla"]): string | undefined {
+  if (sla.breachedResolution) {
+    return "bg-danger-soft hover:bg-danger-soft";
+  }
+  if (sla.breachedResponse) {
+    return "bg-warning-soft hover:bg-warning-soft";
+  }
+  return undefined;
+}
+
 function SortHeader({
   label,
   column,
@@ -105,13 +115,7 @@ export function InteractiveDataTable({
         {rows.map((incident) => (
           <TableRow
             key={incident.id}
-            className={cn(
-              incident.sla.breachedResolution
-                ? "bg-danger-soft hover:bg-danger-soft"
-                : incident.sla.breachedResponse
-                  ? "bg-warning-soft hover:bg-warning-soft"
-                  : undefined
-            )}
+            className={cn(rowBreachClass(incident.sla))}
           >
             <TableCell>
               <Link className="font-semibold text-foreground" href={`/tickets/${incident.id}`}>
