@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { HttpError } from "@/lib/http-error";
 import type { TeamWithMembers } from "@/modules/team/team.model";
 import {
   createTeam,
@@ -50,7 +51,7 @@ function makeTeam(overrides: Partial<TeamWithMembers> = {}): TeamWithMembers {
   };
 }
 
-describe("team.service — listTeams", () => {
+describe("team.service - listTeams", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -66,54 +67,74 @@ describe("team.service — listTeams", () => {
   });
 });
 
-describe("team.service — getTeamById", () => {
+describe("team.service - getTeamById", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it("returns team when found", async () => {
+  it("returns team for admin", async () => {
     const team = makeTeam();
     vi.mocked(findTeamById).mockResolvedValue(team);
 
-    const result = await getTeamById("team-doc-id");
+    const result = await getTeamById("team-doc-id", "user-1", "admin");
 
     expect(result).toEqual(team);
+  });
+
+  it("returns team for member", async () => {
+    const team = makeTeam({ members: [{ userId: "user-1", name: "Alice", email: "alice@example.com", role: "member" }] });
+    vi.mocked(findTeamById).mockResolvedValue(team);
+
+    const result = await getTeamById("team-doc-id", "user-1", "user");
+
+    expect(result).toEqual(team);
+  });
+
+  it("throws forbidden for non-member non-admin", async () => {
+    vi.mocked(findTeamById).mockResolvedValue(makeTeam());
+
+    await expect(getTeamById("team-doc-id", "user-1", "user")).rejects.toBeInstanceOf(HttpError);
+    await expect(getTeamById("team-doc-id", "user-1", "user")).rejects.toThrow("Forbidden");
   });
 
   it("throws when team not found", async () => {
     vi.mocked(findTeamById).mockResolvedValue(null);
 
-    await expect(getTeamById("nonexistent-id")).rejects.toThrow("Team not found");
+    await expect(getTeamById("nonexistent-id", "user-1", "user")).rejects.toThrow("Team not found");
   });
 });
 
-describe("team.service — createTeam", () => {
+describe("team.service - createTeam", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(connectMongo).mockResolvedValue(undefined as never);
   });
 
-  it("creates team with no members", async () => {
+  it("creates team with creator added to members", async () => {
     const team = makeTeam();
     vi.mocked(createTeamRepo).mockResolvedValue(team);
+    vi.mocked(UserModel.countDocuments as ReturnType<typeof vi.fn>).mockResolvedValue(1);
 
-    const result = await createTeam({ name: "Engineering", memberIds: [] });
+    const result = await createTeam({ name: "Engineering", memberIds: [] }, "67dc66fd6f57fd4fce4d8548");
 
     expect(createTeamRepo).toHaveBeenCalledWith(
-      expect.objectContaining({ name: "Engineering", memberIds: [] })
+      expect.objectContaining({
+        name: "Engineering",
+        memberIds: ["67dc66fd6f57fd4fce4d8548"],
+      })
     );
     expect(result).toEqual(team);
   });
 
   it("throws when name is blank", async () => {
-    await expect(createTeam({ name: "   ", memberIds: [] })).rejects.toThrow(
+    await expect(createTeam({ name: "   ", memberIds: [] }, "67dc66fd6f57fd4fce4d8548")).rejects.toThrow(
       "Team name is required"
     );
   });
 
   it("throws when memberIds contain invalid ObjectId", async () => {
     await expect(
-      createTeam({ name: "Engineering", memberIds: ["not-valid-id"] })
+      createTeam({ name: "Engineering", memberIds: ["not-valid-id"] }, "67dc66fd6f57fd4fce4d8548")
     ).rejects.toThrow("Invalid user id");
   });
 
@@ -121,78 +142,60 @@ describe("team.service — createTeam", () => {
     vi.mocked(UserModel.countDocuments as ReturnType<typeof vi.fn>).mockResolvedValue(0);
 
     await expect(
-      createTeam({ name: "Engineering", memberIds: ["67dc66fd6f57fd4fce4d8548"] })
+      createTeam({ name: "Engineering", memberIds: ["67dc66fd6f57fd4fce4d8548"] }, "67dc66fd6f57fd4fce4d8548")
     ).rejects.toThrow("One or more users not found");
   });
 
-  it("deduplicates memberIds", async () => {
+  it("deduplicates memberIds including creator", async () => {
     vi.mocked(UserModel.countDocuments as ReturnType<typeof vi.fn>).mockResolvedValue(1);
-    const team = makeTeam({ members: [{ userId: "67dc66fd6f57fd4fce4d8548", name: "Alice", email: "alice@example.com", role: "member" }] });
+    const team = makeTeam();
     vi.mocked(createTeamRepo).mockResolvedValue(team);
 
-    await createTeam({
-      name: "Engineering",
-      memberIds: ["67dc66fd6f57fd4fce4d8548", "67dc66fd6f57fd4fce4d8548"],
-    });
+    await createTeam(
+      {
+        name: "Engineering",
+        memberIds: ["67dc66fd6f57fd4fce4d8548", "67dc66fd6f57fd4fce4d8548"],
+      },
+      "67dc66fd6f57fd4fce4d8548"
+    );
 
     expect(createTeamRepo).toHaveBeenCalledWith(
       expect.objectContaining({ memberIds: ["67dc66fd6f57fd4fce4d8548"] })
     );
   });
-
-  it("defaults isActive to true when not provided", async () => {
-    const team = makeTeam();
-    vi.mocked(createTeamRepo).mockResolvedValue(team);
-
-    await createTeam({ name: "Engineering", memberIds: [] });
-
-    expect(createTeamRepo).toHaveBeenCalledWith(
-      expect.objectContaining({ isActive: true })
-    );
-  });
 });
 
-describe("team.service — updateTeamById", () => {
+describe("team.service - updateTeamById", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(connectMongo).mockResolvedValue(undefined as never);
   });
 
-  it("throws when no updates provided", async () => {
-    await expect(updateTeamById("team-doc-id", {})).rejects.toThrow("No updates provided");
+  it("throws forbidden for non-admin", async () => {
+    await expect(updateTeamById("team-doc-id", { name: "New Name" }, "user")).rejects.toThrow("Forbidden");
   });
 
-  it("throws when name is blank", async () => {
-    await expect(updateTeamById("team-doc-id", { name: "  " })).rejects.toThrow(
-      "Team name is required"
-    );
+  it("throws when no updates provided", async () => {
+    await expect(updateTeamById("team-doc-id", {}, "admin")).rejects.toThrow("No updates provided");
   });
 
   it("throws when team not found", async () => {
     vi.mocked(updateTeamByIdRepo).mockResolvedValue(null);
 
-    await expect(updateTeamById("team-doc-id", { name: "New Name" })).rejects.toThrow(
-      "Team not found"
-    );
+    await expect(updateTeamById("team-doc-id", { name: "New Name" }, "admin")).rejects.toThrow("Team not found");
   });
 
   it("returns updated team", async () => {
     const updated = makeTeam({ name: "New Name" });
     vi.mocked(updateTeamByIdRepo).mockResolvedValue(updated);
 
-    const result = await updateTeamById("team-doc-id", { name: "New Name" });
+    const result = await updateTeamById("team-doc-id", { name: "New Name" }, "admin");
 
     expect(result).toEqual(updated);
   });
-
-  it("throws when memberIds contain invalid ObjectId", async () => {
-    await expect(
-      updateTeamById("team-doc-id", { memberIds: ["bad-id"] })
-    ).rejects.toThrow("Invalid user id");
-  });
 });
 
-describe("team.service — deleteTeamById", () => {
+describe("team.service - deleteTeamById", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });

@@ -16,7 +16,6 @@ function resolveBackHref(returnTo: string | string[] | undefined): string {
     return "/tickets";
   }
 
-  // Only allow internal relative paths.
   if (value.startsWith("/") && !value.startsWith("//")) {
     return value;
   }
@@ -37,7 +36,10 @@ export default async function TicketDetailPage({
   const backHref = resolveBackHref(returnTo);
   let incident;
   try {
-    incident = await getIncidentById(id);
+    if (!session?.user?.id) {
+      notFound();
+    }
+    incident = await getIncidentById(id, session.user.id, session.user.role);
   } catch {
     notFound();
   }

@@ -14,7 +14,7 @@ export default async function TicketsPage() {
   if (!session?.user?.id) redirect("/login");
 
   const [incidents, teams] = await Promise.all([
-    listIncidents(),
+    listIncidents(session.user.id, session.user.role),
     listTeams(session.user.id),
   ]);
 
@@ -29,8 +29,6 @@ export default async function TicketsPage() {
     name: team.name,
     members: team.members,
   }));
-  const scopedTeamIds = new Set(teamScopeOptions.map((team) => team.teamId));
-  const scopedIncidents = incidents.filter((incident) => scopedTeamIds.has(incident.teamId));
 
   return (
     <div className="space-y-6">
@@ -51,7 +49,7 @@ export default async function TicketsPage() {
         <CardContent className="pt-5">
           <Suspense fallback={null}>
             <TicketsTableSection
-              initialRows={scopedIncidents}
+              initialRows={incidents}
               teamOptions={teamScopeOptions}
               teamOptionsWithMembers={teamOptionsWithMembers}
               currentUserId={session.user.id}

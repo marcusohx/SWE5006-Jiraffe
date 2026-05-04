@@ -1,3 +1,4 @@
+import { HttpError } from "@/lib/http-error";
 import { formatIncidentCode } from "@/lib/utils";
 import { logActivity } from "@/modules/activity/activity.service";
 import type { CreateIncidentInput, UpdateIncidentInput } from "@/modules/incident/incident.dto";
@@ -7,8 +8,10 @@ import {
   createIncident as createIncidentRepo,
   deleteIncidentById as deleteIncidentByIdRepo,
   findIncidentById,
+  findIncidentByIdForUser,
   listIncidentInboxForUser,
   listIncidents as listIncidentsRepo,
+  listIncidentsForUser,
   updateIncidentById as updateIncidentByIdRepo,
   type IncidentInboxItem,
 } from "@/modules/incident/incident.repository";
@@ -39,18 +42,25 @@ function logIncidentUpdateActivity(
   }
 }
 
-export async function listIncidents(): Promise<IncidentWithNames[]> {
-  return listIncidentsRepo();
+export async function listIncidents(
+  userId: string,
+  role: "user" | "admin"
+): Promise<IncidentWithNames[]> {
+  return role === "admin" ? listIncidentsRepo() : listIncidentsForUser(userId);
 }
 
 export async function listIncidentInbox(userId: string): Promise<IncidentInboxItem[]> {
   return listIncidentInboxForUser(userId);
 }
 
-export async function getIncidentById(id: string): Promise<IncidentWithNames> {
-  const incident = await findIncidentById(id);
+export async function getIncidentById(
+  id: string,
+  userId: string,
+  role: "user" | "admin"
+): Promise<IncidentWithNames> {
+  const incident = role === "admin" ? await findIncidentById(id) : await findIncidentByIdForUser(id, userId);
   if (!incident) {
-    throw new Error("Incident not found");
+    throw new HttpError(404, "Incident not found");
   }
   return incident;
 }
@@ -98,17 +108,15 @@ export async function createIncident(
 export async function updateIncidentById(
   id: string,
   input: UpdateIncidentInput,
-  actorId?: string,
-  actorName?: string
+  actorId: string,
+  actorName: string,
+  role: "user" | "admin"
 ): Promise<IncidentWithNames> {
   if (Object.keys(input).length === 0) {
     throw new Error("No updates provided");
   }
 
-  const existing = await findIncidentById(id);
-  if (!existing) {
-    throw new Error("Incident not found");
-  }
+  const existing = await getIncidentById(id, actorId, role);
 
   const updates: UpdateIncidentInput = { ...input };
   if (input.status === "Closed" && !input.closedOn) {
@@ -118,11 +126,11 @@ export async function updateIncidentById(
     updates.closedOn = null;
   }
 
-  if (updates.status === "Closed" && actorId && existing.assignedTo !== actorId) {
+  if (updates.status === "Closed" && role !== "admin" && existing.assignedTo !== actorId) {
     throw new Error("Only the assigned user can close this ticket");
   }
 
-  if (updates.status === "In Progress" && actorId && existing.assignedTo !== actorId) {
+  if (updates.status === "In Progress" && role !== "admin" && existing.assignedTo !== actorId) {
     throw new Error("Only the assigned user can move this ticket to In Progress");
   }
 
@@ -133,9 +141,7 @@ export async function updateIncidentById(
   };
 
   if (updates.assignedTo !== undefined && updates.assignedTo !== existing.assignedTo) {
-    if (actorId) {
-      repositoryUpdates.assignedBy = actorId;
-    }
+    repositoryUpdates.assignedBy = actorId;
     repositoryUpdates.acknowledgedAt = null;
     repositoryUpdates.slaState = "Running";
     repositoryUpdates.slaStoppedAt = null;
@@ -179,9 +185,7 @@ export async function updateIncidentById(
     throw new Error("Incident not found");
   }
 
-  if (actorId && actorName) {
-    logIncidentUpdateActivity(incident, input, actorId, actorName);
-  }
+  logIncidentUpdateActivity(incident, input, actorId, actorName);
 
   return incident;
 }
@@ -189,13 +193,11 @@ export async function updateIncidentById(
 export async function acknowledgeIncident(
   id: string,
   actorId: string,
-  actorName: string
+  actorName: string,
+  role: "user" | "admin"
 ): Promise<IncidentWithNames> {
-  const incident = await findIncidentById(id);
-  if (!incident) {
-    throw new Error("Incident not found");
-  }
-  if (incident.assignedTo !== actorId) {
+  const incident = await getIncidentById(id, actorId, role);
+  if (role !== "admin" && incident.assignedTo !== actorId) {
     throw new Error("Only the assigned user can acknowledge this ticket");
   }
   if (incident.status !== "Open") {
@@ -229,13 +231,11 @@ export async function reassignIncident(
   id: string,
   nextAssigneeId: string,
   actorId: string,
-  actorName: string
+  actorName: string,
+  role: "user" | "admin"
 ): Promise<IncidentWithNames> {
-  const incident = await findIncidentById(id);
-  if (!incident) {
-    throw new Error("Incident not found");
-  }
-  if (incident.assignedTo !== actorId) {
+  const incident = await getIncidentById(id, actorId, role);
+  if (role !== "admin" && incident.assignedTo !== actorId) {
     throw new Error("Only the current assignee can reassign this ticket");
   }
   if (incident.status === "Closed") {
@@ -276,33 +276,27 @@ export async function reassignIncident(
 
 export async function deleteIncidentById(
   id: string,
-  actorId?: string,
-  actorName?: string
+  actorId: string,
+  actorName: string,
+  role: "user" | "admin"
 ): Promise<void> {
-  let meta: { incidentId: number; teamId: number } | null = null;
-  if (actorId) {
-    const existing = await findIncidentById(id);
-    if (existing) {
-      meta = { incidentId: existing.incidentId, teamId: existing.teamId };
-    }
-  }
+  const existing = await getIncidentById(id, actorId, role);
+  const meta = { incidentId: existing.incidentId, teamId: existing.teamId };
 
   const deleted = await deleteIncidentByIdRepo(id);
   if (!deleted) {
     throw new Error("Incident not found");
   }
 
-  if (actorId && actorName && meta) {
-    const label = formatIncidentCode(meta.incidentId);
-    logActivity({
-      actorId,
-      actorName,
-      activityType: "incident_deleted",
-      entityType: "incident",
-      entityId: id,
-      entityLabel: label,
-      teamId: meta.teamId,
-      description: `${actorName} deleted ${label}`,
-    });
-  }
+  const label = formatIncidentCode(meta.incidentId);
+  logActivity({
+    actorId,
+    actorName,
+    activityType: "incident_deleted",
+    entityType: "incident",
+    entityId: id,
+    entityLabel: label,
+    teamId: meta.teamId,
+    description: `${actorName} deleted ${label}`,
+  });
 }

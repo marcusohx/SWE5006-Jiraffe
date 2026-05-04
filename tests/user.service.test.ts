@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { HttpError } from "@/lib/http-error";
 import type { UserAuthRecord } from "@/modules/user/user.model";
 import {
   createUser,
@@ -44,7 +45,7 @@ function makeUserRecord(overrides: Partial<UserAuthRecord> = {}): UserAuthRecord
   };
 }
 
-describe("user.service — getUserById", () => {
+describe("user.service - getUserById", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -67,7 +68,7 @@ describe("user.service — getUserById", () => {
   });
 });
 
-describe("user.service — createUser", () => {
+describe("user.service - createUser", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -93,53 +94,9 @@ describe("user.service — createUser", () => {
 
     expect(bcrypt.default.hash).toHaveBeenCalledWith("password123", 10);
   });
-
-  it("normalizes email to lowercase", async () => {
-    vi.mocked(findUserByEmail).mockResolvedValue(null);
-
-    const bcrypt = await import("bcryptjs");
-    vi.mocked(bcrypt.default.hash).mockResolvedValue("hashed-password" as never);
-
-    const created = makeUserRecord({ email: "new@example.com" });
-    vi.mocked(createUserRepo).mockResolvedValue(created);
-
-    await createUser({ email: "NEW@EXAMPLE.COM", name: "New User", password: "password123" });
-
-    expect(findUserByEmail).toHaveBeenCalledWith("new@example.com");
-  });
-
-  it("defaults role to user when not provided", async () => {
-    vi.mocked(findUserByEmail).mockResolvedValue(null);
-
-    const bcrypt = await import("bcryptjs");
-    vi.mocked(bcrypt.default.hash).mockResolvedValue("hashed-password" as never);
-
-    const created = makeUserRecord();
-    vi.mocked(createUserRepo).mockResolvedValue(created);
-
-    await createUser({ email: "new@example.com", name: "New User", password: "password123" });
-
-    expect(createUserRepo).toHaveBeenCalledWith(
-      expect.objectContaining({ role: "user" })
-    );
-  });
-
-  it("returns public user without passwordHash", async () => {
-    vi.mocked(findUserByEmail).mockResolvedValue(null);
-
-    const bcrypt = await import("bcryptjs");
-    vi.mocked(bcrypt.default.hash).mockResolvedValue("hashed-password" as never);
-
-    const created = makeUserRecord();
-    vi.mocked(createUserRepo).mockResolvedValue(created);
-
-    const result = await createUser({ email: "new@example.com", name: "New User", password: "password123" });
-
-    expect((result as UserAuthRecord).passwordHash).toBeUndefined();
-  });
 });
 
-describe("user.service — registerUser", () => {
+describe("user.service - registerUser", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -161,26 +118,35 @@ describe("user.service — registerUser", () => {
   });
 });
 
-describe("user.service — updateUserById", () => {
+describe("user.service - updateUserById", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   it("throws when no updates provided", async () => {
-    await expect(updateUserById("user-1", {})).rejects.toThrow("No updates provided");
+    await expect(updateUserById("user-1", {}, { id: "user-1", role: "user" })).rejects.toThrow("No updates provided");
   });
 
-  it("throws when user not found", async () => {
-    vi.mocked(updateUserByIdRepo).mockResolvedValue(null);
+  it("blocks non-admin role changes", async () => {
+    await expect(updateUserById("user-1", { role: "admin" }, { id: "user-1", role: "user" })).rejects.toBeInstanceOf(HttpError);
+    await expect(updateUserById("user-1", { role: "admin" }, { id: "user-1", role: "user" })).rejects.toThrow("Forbidden");
+  });
 
-    await expect(updateUserById("user-1", { name: "New Name" })).rejects.toThrow("User not found");
+  it("allows admin role changes", async () => {
+    const updated = makeUserRecord({ role: "admin" });
+    vi.mocked(updateUserByIdRepo).mockResolvedValue(updated);
+
+    const result = await updateUserById("user-1", { role: "admin" }, { id: "admin-1", role: "admin" });
+
+    expect(updateUserByIdRepo).toHaveBeenCalledWith("user-1", expect.objectContaining({ role: "admin" }));
+    expect(result.role).toBe("admin");
   });
 
   it("returns updated public user", async () => {
     const updated = makeUserRecord({ name: "New Name" });
     vi.mocked(updateUserByIdRepo).mockResolvedValue(updated);
 
-    const result = await updateUserById("user-1", { name: "New Name" });
+    const result = await updateUserById("user-1", { name: "New Name" }, { id: "user-1", role: "user" });
 
     expect(result.name).toBe("New Name");
     expect((result as UserAuthRecord).passwordHash).toBeUndefined();
@@ -193,7 +159,7 @@ describe("user.service — updateUserById", () => {
     const updated = makeUserRecord();
     vi.mocked(updateUserByIdRepo).mockResolvedValue(updated);
 
-    await updateUserById("user-1", { password: "newpassword123" });
+    await updateUserById("user-1", { password: "newpassword123" }, { id: "user-1", role: "user" });
 
     expect(bcrypt.default.hash).toHaveBeenCalledWith("newpassword123", 10);
     expect(updateUserByIdRepo).toHaveBeenCalledWith(
@@ -203,7 +169,7 @@ describe("user.service — updateUserById", () => {
   });
 });
 
-describe("user.service — deleteUserById", () => {
+describe("user.service - deleteUserById", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });

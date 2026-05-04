@@ -1,6 +1,6 @@
 import { getServerSession } from "next-auth";
+import { requireSessionUser } from "@/lib/authz";
 import { handleApiError } from "@/lib/api-error";
-import { fail } from "@/lib/api-response";
 import { authOptions } from "@/modules/auth/auth.options";
 import { parseCreateIncident } from "@/modules/incident/incident.dto";
 import {
@@ -10,7 +10,8 @@ import {
 
 export async function GET() {
   try {
-    return await listIncidentsController();
+    const user = requireSessionUser(await getServerSession(authOptions));
+    return await listIncidentsController(user.id, user.role);
   } catch (error) {
     return handleApiError(error);
   }
@@ -18,13 +19,10 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-      return fail("Unauthorized", 401);
-    }
+    const user = requireSessionUser(await getServerSession(authOptions));
     const body = await request.json();
     const input = parseCreateIncident(body);
-    return await createIncidentController(input, session.user.id, session.user.name ?? "Unknown");
+    return await createIncidentController(input, user.id, user.name ?? "Unknown");
   } catch (error) {
     return handleApiError(error);
   }

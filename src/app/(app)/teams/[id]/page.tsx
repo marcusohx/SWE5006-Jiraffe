@@ -1,16 +1,22 @@
 import { ArrowLeft, Users } from "lucide-react";
+import { getServerSession } from "next-auth";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { TeamCodeCopyButton } from "@/components/teams/TeamCodeCopyButton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatDisplayDate } from "@/lib/utils";
+import { authOptions } from "@/modules/auth/auth.options";
 import { getTeamById } from "@/modules/team/team.service";
 
 export default async function TeamDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const session = await getServerSession(authOptions);
   const { id } = await params;
   let team;
   try {
-    team = await getTeamById(id);
+    if (!session?.user?.id) {
+      notFound();
+    }
+    team = await getTeamById(id, session.user.id, session.user.role);
   } catch {
     notFound();
   }

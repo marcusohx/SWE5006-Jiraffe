@@ -9,7 +9,7 @@ import type {
   UpdateIncidentRepositoryInput,
 } from "@/modules/incident/incident.model";
 import { IncidentModel } from "@/modules/incident/incident.model";
-import { CounterModel, UserTeamModel } from "@/modules/team/team.model";
+import { CounterModel, TeamModel, UserTeamModel } from "@/modules/team/team.model";
 import "@/modules/user/user.model";
 
 type IncidentRef =
@@ -193,6 +193,21 @@ export async function listIncidents(): Promise<IncidentWithNames[]> {
   return docs.map((d) => mapIncidentWithNames(d.toObject()));
 }
 
+export async function listIncidentsForUser(userId: string): Promise<IncidentWithNames[]> {
+  await connectMongo();
+  const memberships = await UserTeamModel.find({
+    user_id: toObjectId(userId, "User id"),
+  }).lean();
+  const teamIds = memberships.map((membership) => membership.team_id);
+  if (teamIds.length === 0) {
+    return [];
+  }
+  const docs = await IncidentModel.find({ team_id: { $in: teamIds } })
+    .populate(USER_POPULATE)
+    .sort({ board_order: 1, createdAt: 1 });
+  return docs.map((d) => mapIncidentWithNames(d.toObject()));
+}
+
 export async function createIncident(
   data: CreateIncidentRepositoryInput
 ): Promise<Incident> {
@@ -260,6 +275,18 @@ export async function findIncidentById(id: string): Promise<IncidentWithNames | 
   }
   const doc = await IncidentModel.findById(id).populate(USER_POPULATE);
   return doc ? mapIncidentWithNames(doc.toObject()) : null;
+}
+
+export async function findIncidentByIdForUser(
+  id: string,
+  userId: string
+): Promise<IncidentWithNames | null> {
+  const incident = await findIncidentById(id);
+  if (!incident) {
+    return null;
+  }
+  const member = await isUserInTeam(userId, incident.teamId);
+  return member ? incident : null;
 }
 
 async function listAssignableTeamMembers(teamId: number): Promise<IncidentInboxItem["availableAssignees"]> {
@@ -364,3 +391,4 @@ export async function deleteIncidentById(id: string): Promise<boolean> {
   const result = await IncidentModel.deleteOne({ _id: id });
   return result.deletedCount === 1;
 }
+
