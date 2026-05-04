@@ -1,5 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { createIncident, deleteIncidentById, findIncidentById, listIncidentInboxForUser, updateIncidentById } from "@/modules/incident/incident.repository";
+import {
+  createIncident,
+  deleteIncidentById,
+  findIncidentById,
+  findIncidentByIdForUser,
+  listIncidentInboxForUser,
+  listIncidents,
+  listIncidentsForUser,
+  updateIncidentById,
+} from "@/modules/incident/incident.repository";
 
 const {
   connectMongo,
@@ -383,6 +392,124 @@ describe("incident.repository — deleteIncidentById", () => {
 
     const result = await deleteIncidentById("67dc66fd6f57fd4fce4d8548");
     expect(result).toBe(true);
+  });
+});
+
+describe("incident.repository — listIncidents", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    connectMongo.mockResolvedValue({ startSession });
+  });
+
+  it("returns all mapped incidents", async () => {
+    incidentFind.mockReturnValue({
+      populate: vi.fn().mockReturnValue({
+        sort: vi.fn().mockResolvedValue([makeUpdatedDoc(), makeUpdatedDoc()]),
+      }),
+    });
+
+    const result = await listIncidents();
+    expect(result).toHaveLength(2);
+    expect(result[0]?.teamId).toBe(2);
+  });
+});
+
+describe("incident.repository — listIncidentsForUser", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    connectMongo.mockResolvedValue({ startSession });
+  });
+
+  it("returns empty array when user has no team memberships", async () => {
+    userTeamFind.mockReturnValue({ lean: vi.fn().mockResolvedValue([]) });
+
+    const result = await listIncidentsForUser("67dc66fd6f57fd4fce4d8548");
+
+    expect(result).toEqual([]);
+    expect(incidentFind).not.toHaveBeenCalled();
+  });
+
+  it("returns incidents scoped to user's teams when memberships exist", async () => {
+    userTeamFind.mockReturnValue({
+      lean: vi.fn().mockResolvedValue([{ team_id: 2 }, { team_id: 5 }]),
+    });
+    incidentFind.mockReturnValue({
+      populate: vi.fn().mockReturnValue({
+        sort: vi.fn().mockResolvedValue([makeUpdatedDoc()]),
+      }),
+    });
+
+    const result = await listIncidentsForUser("67dc66fd6f57fd4fce4d8548");
+
+    expect(result).toHaveLength(1);
+    expect(incidentFind).toHaveBeenCalledWith({ team_id: { $in: [2, 5] } });
+  });
+});
+
+describe("incident.repository — findIncidentByIdForUser", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    connectMongo.mockResolvedValue({ startSession });
+  });
+
+  it("returns null when underlying incident is not found", async () => {
+    incidentFindById.mockReturnValue({
+      populate: vi.fn().mockResolvedValue(null),
+    });
+
+    const result = await findIncidentByIdForUser("67dc66fd6f57fd4fce4d8548", "67dc66fd6f57fd4fce4d8548");
+    expect(result).toBeNull();
+  });
+
+  it("returns null when user is not a member of the incident's team", async () => {
+    incidentFindById.mockReturnValue({
+      populate: vi.fn().mockResolvedValue(makeUpdatedDoc()),
+    });
+    userTeamCountDocuments.mockResolvedValue(0);
+
+    const result = await findIncidentByIdForUser("67dc66fd6f57fd4fce4d8548", "67dc66fd6f57fd4fce4d8548");
+    expect(result).toBeNull();
+  });
+
+  it("returns the incident when user is a member of its team", async () => {
+    incidentFindById.mockReturnValue({
+      populate: vi.fn().mockResolvedValue(makeUpdatedDoc()),
+    });
+    userTeamCountDocuments.mockResolvedValue(1);
+
+    const result = await findIncidentByIdForUser("67dc66fd6f57fd4fce4d8548", "67dc66fd6f57fd4fce4d8548");
+    expect(result).not.toBeNull();
+    expect(result?.teamId).toBe(2);
+  });
+});
+
+describe("incident.repository — createIncident transaction errors", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    connectMongo.mockResolvedValue({ startSession });
+    startSession.mockResolvedValue({ withTransaction, endSession });
+    endSession.mockResolvedValue(undefined);
+  });
+
+  it("translates standalone-mongo transaction errors into a friendly message", async () => {
+    withTransaction.mockRejectedValue(
+      new Error("Transaction numbers are only allowed on a replica set member or mongos")
+    );
+
+    await expect(
+      createIncident({
+        teamId: 2,
+        title: "T1",
+        description: "D1",
+        severity: "Low",
+        status: "Open",
+        boardOrder: 1000,
+        createdBy: "67dc66fd6f57fd4fce4d8548",
+        assignedBy: "67dc66fd6f57fd4fce4d8548",
+        assignedTo: "67dc66fd6f57fd4fce4d8548",
+        comment: null,
+      })
+    ).rejects.toThrow("MongoDB transactions are required for incident id allocation");
   });
 });
 

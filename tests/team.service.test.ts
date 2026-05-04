@@ -193,6 +193,62 @@ describe("team.service - updateTeamById", () => {
 
     expect(result).toEqual(updated);
   });
+
+  it("throws when name update is blank", async () => {
+    await expect(updateTeamById("team-doc-id", { name: "   " }, "admin")).rejects.toThrow(
+      "Team name is required"
+    );
+  });
+
+  it("trims description and persists trimmed value", async () => {
+    const updated = makeTeam({ description: "trimmed" });
+    vi.mocked(updateTeamByIdRepo).mockResolvedValue(updated);
+
+    await updateTeamById("team-doc-id", { description: "  trimmed  " }, "admin");
+
+    expect(updateTeamByIdRepo).toHaveBeenCalledWith(
+      "team-doc-id",
+      expect.objectContaining({ description: "trimmed" })
+    );
+  });
+
+  it("normalizes whitespace-only description to null", async () => {
+    vi.mocked(updateTeamByIdRepo).mockResolvedValue(makeTeam());
+
+    await updateTeamById("team-doc-id", { description: "   " }, "admin");
+
+    expect(updateTeamByIdRepo).toHaveBeenCalledWith(
+      "team-doc-id",
+      expect.objectContaining({ description: null })
+    );
+  });
+
+  it("validates and persists memberIds when provided", async () => {
+    vi.mocked(UserModel.countDocuments as ReturnType<typeof vi.fn>).mockResolvedValue(1);
+    vi.mocked(updateTeamByIdRepo).mockResolvedValue(makeTeam());
+
+    await updateTeamById(
+      "team-doc-id",
+      { memberIds: ["67dc66fd6f57fd4fce4d8548", "67dc66fd6f57fd4fce4d8548"] },
+      "admin"
+    );
+
+    expect(updateTeamByIdRepo).toHaveBeenCalledWith(
+      "team-doc-id",
+      expect.objectContaining({ memberIds: ["67dc66fd6f57fd4fce4d8548"] })
+    );
+  });
+
+  it("persists isActive flag updates", async () => {
+    vi.mocked(updateTeamByIdRepo).mockResolvedValue(makeTeam({ isActive: false }));
+
+    await updateTeamById("team-doc-id", { isActive: false }, "admin");
+
+    expect(updateTeamByIdRepo).toHaveBeenCalledWith(
+      "team-doc-id",
+      expect.objectContaining({ isActive: false })
+    );
+  });
 });
 
 describe("team.service - deleteTeamById", () => {

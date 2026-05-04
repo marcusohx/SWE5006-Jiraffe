@@ -74,7 +74,7 @@ export function IncidentNotificationBell() {
   useEffect(() => {
     const controller = new AbortController();
     const trigger = () => {
-      void loadInbox(controller.signal);
+      loadInbox(controller.signal).catch(() => undefined);
     };
 
     trigger();

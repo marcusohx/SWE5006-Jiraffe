@@ -142,4 +142,25 @@ describe("formatDurationFromNow", () => {
     expect(formatDurationFromNow("2026-04-24T00:30:00.000Z")).toBe("1h 30m");
     vi.useRealTimers();
   });
+
+  it("includes day component when duration spans multiple days", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-04-24T00:00:00.000Z"));
+    expect(formatDurationFromNow("2026-04-26T02:30:00.000Z")).toBe("in 2d 2h 30m");
+    vi.useRealTimers();
+  });
+
+  it("accepts a Date instance as input", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-04-24T00:00:00.000Z"));
+    expect(formatDurationFromNow(new Date("2026-04-24T00:45:00.000Z"))).toBe("in 45m");
+    vi.useRealTimers();
+  });
+
+  it("returns '0m' when target equals now", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-04-24T00:00:00.000Z"));
+    expect(formatDurationFromNow("2026-04-24T00:00:00.000Z")).toBe("in 0m");
+    vi.useRealTimers();
+  });
 });

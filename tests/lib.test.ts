@@ -12,6 +12,7 @@ vi.mock("next/server", () => ({
 
 import { fail, ok } from "@/lib/api-response";
 import { handleApiError } from "@/lib/api-error";
+import { HttpError } from "@/lib/http-error";
 import { formatRelativeTime } from "@/lib/utils";
 import { logger } from "@/lib/logger";
 
@@ -86,6 +87,24 @@ describe("handleApiError — Error", () => {
   it("is case-insensitive for 'not found' check", () => {
     const res = handleApiError(new Error("User Not Found")) as { body: unknown; status: number };
     expect(res.status).toBe(404);
+  });
+
+  it("returns 401 when message includes 'unauthorized'", () => {
+    const res = handleApiError(new Error("Unauthorized request")) as { body: unknown; status: number };
+    expect(res.status).toBe(401);
+  });
+
+  it("returns 403 when message includes 'forbidden'", () => {
+    const res = handleApiError(new Error("Forbidden access")) as { body: unknown; status: number };
+    expect(res.status).toBe(403);
+  });
+});
+
+describe("handleApiError — HttpError", () => {
+  it("uses the HttpError status and message", () => {
+    const res = handleApiError(new HttpError(418, "I'm a teapot")) as { body: unknown; status: number };
+    expect(res.status).toBe(418);
+    expect(res.body).toEqual({ success: false, error: "I'm a teapot" });
   });
 });
 
