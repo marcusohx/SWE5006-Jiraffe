@@ -81,14 +81,22 @@ export async function createTeam(
 export async function updateTeamById(
   id: string,
   input: UpdateTeamInput,
+  userId: string,
   role: "user" | "admin"
 ): Promise<TeamWithMembers> {
-  if (role !== "admin") {
-    throw new HttpError(403, "Forbidden");
-  }
-
   if (Object.keys(input).length === 0) {
     throw new Error("No updates provided");
+  }
+
+  const existingTeam = await findTeamById(id);
+  if (!existingTeam) {
+    throw new Error("Team not found");
+  }
+
+  const canUpdate =
+    role === "admin" || existingTeam.members.some((member) => member.userId === userId);
+  if (!canUpdate) {
+    throw new HttpError(403, "Forbidden");
   }
 
   const updates: {

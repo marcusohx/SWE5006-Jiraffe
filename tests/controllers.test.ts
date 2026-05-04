@@ -277,9 +277,9 @@ describe("team.controller - updateTeamByIdController", () => {
     vi.mocked(teamService.updateTeamById).mockResolvedValue(updated as never);
 
     const input = { name: "New Name" };
-    const result = await updateTeamByIdController(TEAM_ID, input, "admin");
+    const result = await updateTeamByIdController(TEAM_ID, input, USER_ID, "admin");
 
-    expect(teamService.updateTeamById).toHaveBeenCalledWith(TEAM_ID, input, "admin");
+    expect(teamService.updateTeamById).toHaveBeenCalledWith(TEAM_ID, input, USER_ID, "admin");
     expect(result).toMatchObject({ data: updated });
   });
 });

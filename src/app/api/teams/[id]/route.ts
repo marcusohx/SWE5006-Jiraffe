@@ -25,12 +25,11 @@ export async function GET(_request: Request, { params }: Params) {
 export async function PUT(request: Request, { params }: Params) {
   try {
     const user = requireSessionUser(await getServerSession(authOptions));
-    assertAdmin(user);
     const { id } = await params;
     const parsedId = parseTeamId(id);
     const body = await request.json();
     const input = parseUpdateTeam(body);
-    return await updateTeamByIdController(parsedId, input, user.role);
+    return await updateTeamByIdController(parsedId, input, user.id, user.role);
   } catch (error) {
     return handleApiError(error);
   }

@@ -26,9 +26,10 @@ export async function getTeamByIdController(id: string, userId: string, role: "u
 export async function updateTeamByIdController(
   id: string,
   input: UpdateTeamInput,
+  userId: string,
   role: "user" | "admin"
 ) {
-  const team = await updateTeamById(id, input, role);
+  const team = await updateTeamById(id, input, userId, role);
   return ok(team);
 }
 

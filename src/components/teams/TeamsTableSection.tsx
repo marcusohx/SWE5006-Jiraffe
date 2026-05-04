@@ -123,13 +123,13 @@ export function TeamsTableSection({
                       <Eye className="h-4 w-4" />
                     </Link>
                   </Button>
+                  <Button size="sm" variant="ghost" asChild>
+                    <Link href={`?edit=${team.id}`} aria-label={`Edit ${team.name}`}>
+                      <Pencil className="h-4 w-4" />
+                    </Link>
+                  </Button>
                   {canManage ? (
                     <>
-                      <Button size="sm" variant="ghost" asChild>
-                        <Link href={`?edit=${team.id}`} aria-label={`Edit ${team.name}`}>
-                          <Pencil className="h-4 w-4" />
-                        </Link>
-                      </Button>
                       <Button
                         size="sm"
                         variant="ghost"

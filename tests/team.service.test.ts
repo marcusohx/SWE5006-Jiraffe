@@ -171,40 +171,89 @@ describe("team.service - updateTeamById", () => {
     vi.mocked(connectMongo).mockResolvedValue(undefined as never);
   });
 
-  it("throws forbidden for non-admin", async () => {
-    await expect(updateTeamById("team-doc-id", { name: "New Name" }, "user")).rejects.toThrow("Forbidden");
+  it("allows a current member to update all team fields", async () => {
+    const memberId = "67dc66fd6f57fd4fce4d8548";
+    const updated = makeTeam({ name: "New Name", isActive: false });
+    vi.mocked(findTeamById).mockResolvedValue(
+      makeTeam({
+        members: [{ userId: memberId, name: "Alice", email: "alice@example.com", role: "member" }],
+      })
+    );
+    vi.mocked(UserModel.countDocuments as ReturnType<typeof vi.fn>).mockResolvedValue(1);
+    vi.mocked(updateTeamByIdRepo).mockResolvedValue(updated);
+
+    const result = await updateTeamById(
+      "team-doc-id",
+      {
+        name: "New Name",
+        description: "Updated",
+        memberIds: [memberId],
+        isActive: false,
+      },
+      memberId,
+      "user"
+    );
+
+    expect(result).toEqual(updated);
+    expect(updateTeamByIdRepo).toHaveBeenCalledWith(
+      "team-doc-id",
+      expect.objectContaining({
+        name: "New Name",
+        description: "Updated",
+        memberIds: [memberId],
+        isActive: false,
+      })
+    );
+  });
+
+  it("throws forbidden for non-admin non-member", async () => {
+    vi.mocked(findTeamById).mockResolvedValue(
+      makeTeam({
+        members: [{ userId: "67dc66fd6f57fd4fce4d8548", name: "Alice", email: "alice@example.com", role: "member" }],
+      })
+    );
+
+    await expect(
+      updateTeamById("team-doc-id", { name: "New Name" }, "67dc66fd6f57fd4fce4d9999", "user")
+    ).rejects.toThrow("Forbidden");
+    expect(updateTeamByIdRepo).not.toHaveBeenCalled();
   });
 
   it("throws when no updates provided", async () => {
-    await expect(updateTeamById("team-doc-id", {}, "admin")).rejects.toThrow("No updates provided");
+    await expect(updateTeamById("team-doc-id", {}, "admin-user", "admin")).rejects.toThrow("No updates provided");
   });
 
   it("throws when team not found", async () => {
-    vi.mocked(updateTeamByIdRepo).mockResolvedValue(null);
+    vi.mocked(findTeamById).mockResolvedValue(null);
 
-    await expect(updateTeamById("team-doc-id", { name: "New Name" }, "admin")).rejects.toThrow("Team not found");
+    await expect(updateTeamById("team-doc-id", { name: "New Name" }, "admin-user", "admin")).rejects.toThrow("Team not found");
+    expect(updateTeamByIdRepo).not.toHaveBeenCalled();
   });
 
-  it("returns updated team", async () => {
+  it("returns updated team for admin", async () => {
     const updated = makeTeam({ name: "New Name" });
+    vi.mocked(findTeamById).mockResolvedValue(makeTeam());
     vi.mocked(updateTeamByIdRepo).mockResolvedValue(updated);
 
-    const result = await updateTeamById("team-doc-id", { name: "New Name" }, "admin");
+    const result = await updateTeamById("team-doc-id", { name: "New Name" }, "admin-user", "admin");
 
     expect(result).toEqual(updated);
   });
 
   it("throws when name update is blank", async () => {
-    await expect(updateTeamById("team-doc-id", { name: "   " }, "admin")).rejects.toThrow(
+    vi.mocked(findTeamById).mockResolvedValue(makeTeam());
+
+    await expect(updateTeamById("team-doc-id", { name: "   " }, "admin-user", "admin")).rejects.toThrow(
       "Team name is required"
     );
   });
 
   it("trims description and persists trimmed value", async () => {
     const updated = makeTeam({ description: "trimmed" });
+    vi.mocked(findTeamById).mockResolvedValue(makeTeam());
     vi.mocked(updateTeamByIdRepo).mockResolvedValue(updated);
 
-    await updateTeamById("team-doc-id", { description: "  trimmed  " }, "admin");
+    await updateTeamById("team-doc-id", { description: "  trimmed  " }, "admin-user", "admin");
 
     expect(updateTeamByIdRepo).toHaveBeenCalledWith(
       "team-doc-id",
@@ -213,9 +262,10 @@ describe("team.service - updateTeamById", () => {
   });
 
   it("normalizes whitespace-only description to null", async () => {
+    vi.mocked(findTeamById).mockResolvedValue(makeTeam());
     vi.mocked(updateTeamByIdRepo).mockResolvedValue(makeTeam());
 
-    await updateTeamById("team-doc-id", { description: "   " }, "admin");
+    await updateTeamById("team-doc-id", { description: "   " }, "admin-user", "admin");
 
     expect(updateTeamByIdRepo).toHaveBeenCalledWith(
       "team-doc-id",
@@ -224,12 +274,14 @@ describe("team.service - updateTeamById", () => {
   });
 
   it("validates and persists memberIds when provided", async () => {
+    vi.mocked(findTeamById).mockResolvedValue(makeTeam());
     vi.mocked(UserModel.countDocuments as ReturnType<typeof vi.fn>).mockResolvedValue(1);
     vi.mocked(updateTeamByIdRepo).mockResolvedValue(makeTeam());
 
     await updateTeamById(
       "team-doc-id",
       { memberIds: ["67dc66fd6f57fd4fce4d8548", "67dc66fd6f57fd4fce4d8548"] },
+      "admin-user",
       "admin"
     );
 
@@ -240,9 +292,10 @@ describe("team.service - updateTeamById", () => {
   });
 
   it("persists isActive flag updates", async () => {
+    vi.mocked(findTeamById).mockResolvedValue(makeTeam());
     vi.mocked(updateTeamByIdRepo).mockResolvedValue(makeTeam({ isActive: false }));
 
-    await updateTeamById("team-doc-id", { isActive: false }, "admin");
+    await updateTeamById("team-doc-id", { isActive: false }, "admin-user", "admin");
 
     expect(updateTeamByIdRepo).toHaveBeenCalledWith(
       "team-doc-id",
