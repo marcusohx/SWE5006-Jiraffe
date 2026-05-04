@@ -80,24 +80,24 @@ function getRefName(ref: IncidentRef): string {
   return ref.name ?? "Unknown";
 }
 
-async function getNextIncidentId(session: mongoose.ClientSession): Promise<number> {
+async function getNextIncidentId(): Promise<number> {
   const counter = await CounterModel.findOneAndUpdate(
     { name: "incident_id" },
     { $inc: { seq: 1 } },
-    { new: true, upsert: true, session }
+    { new: true, upsert: true }
   );
   if (!counter) {
     throw new Error("Failed to allocate incident id");
   }
 
   if (counter.seq <= 1) {
-    const maxIncident = await IncidentModel.findOne({}, { incident_id: 1 }, { sort: { incident_id: -1 }, session });
+    const maxIncident = await IncidentModel.findOne({}, { incident_id: 1 }, { sort: { incident_id: -1 } });
     const maxIncidentId = maxIncident?.incident_id ?? 0;
     if (maxIncidentId >= counter.seq) {
       const bumped = await CounterModel.findOneAndUpdate(
         { name: "incident_id" },
         { $set: { seq: maxIncidentId + 1 } },
-        { new: true, session }
+        { new: true }
       );
       if (bumped) {
         return bumped.seq;
@@ -211,61 +211,43 @@ export async function listIncidentsForUser(userId: string): Promise<IncidentWith
 export async function createIncident(
   data: CreateIncidentRepositoryInput
 ): Promise<Incident> {
-  const mongo = await connectMongo();
-  const session = await mongo.startSession();
-  let createdDoc: Record<string, unknown> | null = null;
+  await connectMongo();
+  const teamId = data.teamId;
+  await Promise.all([
+    assertUserInTeam(data.createdBy, teamId, "Creator is not a member of selected team"),
+    assertUserInTeam(data.assignedBy, teamId, "Assigned by user is not a member of selected team"),
+    assertUserInTeam(data.assignedTo, teamId, "Assignee is not a member of selected team"),
+  ]);
 
-  try {
-    await session.withTransaction(async () => {
-      const teamId = data.teamId;
-      await Promise.all([
-        assertUserInTeam(data.createdBy, teamId, "Creator is not a member of selected team", session),
-        assertUserInTeam(data.assignedBy, teamId, "Assigned by user is not a member of selected team", session),
-        assertUserInTeam(data.assignedTo, teamId, "Assignee is not a member of selected team", session),
-      ]);
+  const incidentId = await getNextIncidentId();
+  const sla = createIncidentSlaSnapshot(data.severity);
+  const created = await IncidentModel.create([
+    {
+      incident_id: incidentId,
+      team_id: teamId,
+      title: data.title,
+      description: data.description,
+      severity: data.severity,
+      status: data.status,
+      board_order: data.boardOrder,
+      created_by: toObjectId(data.createdBy, "Created by"),
+      assigned_by: toObjectId(data.assignedBy, "Assigned by"),
+      assigned_to: toObjectId(data.assignedTo, "Assigned to"),
+      comment: data.comment ?? null,
+      sla_started_at: sla.startedAt,
+      response_due_at: sla.responseDueAt,
+      resolution_due_at: sla.resolutionDueAt,
+      acknowledged_at: sla.acknowledgedAt,
+      sla_state: sla.state,
+      sla_stopped_at: sla.stoppedAt,
+    },
+  ]);
+  const createdDoc = created[0]?.toObject() ?? null;
 
-      const incidentId = await getNextIncidentId(session);
-      const sla = createIncidentSlaSnapshot(data.severity);
-      const created = await IncidentModel.create(
-        [
-          {
-            incident_id: incidentId,
-            team_id: teamId,
-            title: data.title,
-            description: data.description,
-            severity: data.severity,
-            status: data.status,
-            board_order: data.boardOrder,
-            created_by: toObjectId(data.createdBy, "Created by"),
-            assigned_by: toObjectId(data.assignedBy, "Assigned by"),
-            assigned_to: toObjectId(data.assignedTo, "Assigned to"),
-            comment: data.comment ?? null,
-            sla_started_at: sla.startedAt,
-            response_due_at: sla.responseDueAt,
-            resolution_due_at: sla.resolutionDueAt,
-            acknowledged_at: sla.acknowledgedAt,
-            sla_state: sla.state,
-            sla_stopped_at: sla.stoppedAt,
-          },
-        ],
-        { session }
-      );
-      createdDoc = created[0]?.toObject() ?? null;
-    });
-
-    if (!createdDoc) {
-      throw new Error("Failed to create incident");
-    }
-    return mapIncident(createdDoc);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "";
-    if (message.includes("Transaction numbers are only allowed on a replica set member or mongos")) {
-      throw new Error("MongoDB transactions are required for incident id allocation");
-    }
-    throw error;
-  } finally {
-    await session.endSession();
+  if (!createdDoc) {
+    throw new Error("Failed to create incident");
   }
+  return mapIncident(createdDoc);
 }
 
 export async function findIncidentById(id: string): Promise<IncidentWithNames | null> {

@@ -159,21 +159,17 @@ describe("incident.repository team scope", () => {
       comment: null,
     });
 
-    expect(incidentCreate).toHaveBeenCalledWith(
-      [
-        expect.objectContaining({
-          incident_id: 7,
-          team_id: 2,
-        }),
-      ],
+    expect(incidentCreate).toHaveBeenCalledWith([
       expect.objectContaining({
-        session: expect.any(Object),
-      })
-    );
+        incident_id: 7,
+        team_id: 2,
+      }),
+    ]);
     expect(created.teamId).toBe(2);
     expect(created.incidentId).toBe(7);
-    expect(withTransaction).toHaveBeenCalledTimes(1);
-    expect(endSession).toHaveBeenCalledTimes(1);
+    expect(startSession).not.toHaveBeenCalled();
+    expect(withTransaction).not.toHaveBeenCalled();
+    expect(endSession).not.toHaveBeenCalled();
   });
 
   it("rejects create when assignee is not in selected team", async () => {
@@ -198,10 +194,11 @@ describe("incident.repository team scope", () => {
     ).rejects.toThrow("Assignee is not a member of selected team");
     expect(counterFindOneAndUpdate).not.toHaveBeenCalled();
     expect(incidentCreate).not.toHaveBeenCalled();
-    expect(endSession).toHaveBeenCalledTimes(1);
+    expect(startSession).not.toHaveBeenCalled();
+    expect(endSession).not.toHaveBeenCalled();
   });
 
-  it("does not commit counter increment when incident creation fails", async () => {
+  it("propagates incident creation failures after allocating an incident id", async () => {
     userTeamCountDocuments.mockResolvedValue(1);
     incidentCreate.mockRejectedValue(new Error("insert failed"));
 
@@ -220,7 +217,8 @@ describe("incident.repository team scope", () => {
       })
     ).rejects.toThrow("insert failed");
     expect(counterFindOneAndUpdate).toHaveBeenCalledTimes(1);
-    expect(endSession).toHaveBeenCalledTimes(1);
+    expect(startSession).not.toHaveBeenCalled();
+    expect(endSession).not.toHaveBeenCalled();
   });
 
   it("bootstraps counter to max incident_id + 1 when counter is behind", async () => {
@@ -248,13 +246,13 @@ describe("incident.repository team scope", () => {
       1,
       { name: "incident_id" },
       { $inc: { seq: 1 } },
-      expect.objectContaining({ session: expect.any(Object) })
+      { new: true, upsert: true }
     );
     expect(counterFindOneAndUpdate).toHaveBeenNthCalledWith(
       2,
       { name: "incident_id" },
       { $set: { seq: 13 } },
-      expect.objectContaining({ session: expect.any(Object) })
+      { new: true }
     );
   });
 
@@ -483,7 +481,7 @@ describe("incident.repository — findIncidentByIdForUser", () => {
   });
 });
 
-describe("incident.repository — createIncident transaction errors", () => {
+describe("incident.repository — createIncident standalone MongoDB", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     connectMongo.mockResolvedValue({ startSession });
@@ -491,25 +489,29 @@ describe("incident.repository — createIncident transaction errors", () => {
     endSession.mockResolvedValue(undefined);
   });
 
-  it("translates standalone-mongo transaction errors into a friendly message", async () => {
+  it("creates incidents without requiring MongoDB transactions", async () => {
+    userTeamCountDocuments.mockResolvedValue(1);
+    incidentCreate.mockResolvedValue([makeCreateDoc()]);
     withTransaction.mockRejectedValue(
       new Error("Transaction numbers are only allowed on a replica set member or mongos")
     );
 
-    await expect(
-      createIncident({
-        teamId: 2,
-        title: "T1",
-        description: "D1",
-        severity: "Low",
-        status: "Open",
-        boardOrder: 1000,
-        createdBy: "67dc66fd6f57fd4fce4d8548",
-        assignedBy: "67dc66fd6f57fd4fce4d8548",
-        assignedTo: "67dc66fd6f57fd4fce4d8548",
-        comment: null,
-      })
-    ).rejects.toThrow("MongoDB transactions are required for incident id allocation");
+    const created = await createIncident({
+      teamId: 2,
+      title: "T1",
+      description: "D1",
+      severity: "Low",
+      status: "Open",
+      boardOrder: 1000,
+      createdBy: "67dc66fd6f57fd4fce4d8548",
+      assignedBy: "67dc66fd6f57fd4fce4d8548",
+      assignedTo: "67dc66fd6f57fd4fce4d8548",
+      comment: null,
+    });
+
+    expect(created.incidentId).toBe(7);
+    expect(startSession).not.toHaveBeenCalled();
+    expect(withTransaction).not.toHaveBeenCalled();
   });
 });
 
