@@ -1,14 +1,21 @@
 import mongoose from "mongoose";
 import { connectMongo } from "@/lib/db/mongodb";
 import { capitalizeName } from "@/lib/utils";
-import { createIncidentSlaSnapshot, recomputeIncidentSlaSnapshot } from "@/modules/incident/incident-sla";
+import {
+  createIncidentSlaSnapshot,
+  getDefaultIncidentSlaPolicy,
+  type IncidentSlaPolicy,
+  recomputeIncidentSlaSnapshot,
+} from "@/modules/incident/incident-sla";
 import type {
   CreateIncidentRepositoryInput,
   Incident,
+  IncidentSeverity,
   IncidentWithNames,
   UpdateIncidentRepositoryInput,
 } from "@/modules/incident/incident.model";
 import { IncidentModel } from "@/modules/incident/incident.model";
+import { findSlaRuleBySeverity, listSlaRules } from "@/modules/sla-rule/sla-rule.repository";
 import { CounterModel, UserTeamModel } from "@/modules/team/team.model";
 import "@/modules/user/user.model";
 
@@ -47,6 +54,8 @@ export interface IncidentInboxItem extends IncidentWithNames {
   availableAssignees: { id: string; name: string; email: string }[];
 }
 
+type SlaPolicyMap = Partial<Record<IncidentSeverity, IncidentSlaPolicy>>;
+
 function toObjectId(value: string, fieldName: string): mongoose.Types.ObjectId {
   if (!mongoose.Types.ObjectId.isValid(value)) {
     throw new Error(`${fieldName} is invalid`);
@@ -80,24 +89,24 @@ function getRefName(ref: IncidentRef): string {
   return ref.name ?? "Unknown";
 }
 
-async function getNextIncidentId(): Promise<number> {
+async function getNextIncidentId(session?: mongoose.ClientSession): Promise<number> {
   const counter = await CounterModel.findOneAndUpdate(
     { name: "incident_id" },
     { $inc: { seq: 1 } },
-    { new: true, upsert: true }
+    { new: true, upsert: true, session }
   );
   if (!counter) {
     throw new Error("Failed to allocate incident id");
   }
 
   if (counter.seq <= 1) {
-    const maxIncident = await IncidentModel.findOne({}, { incident_id: 1 }, { sort: { incident_id: -1 } });
+    const maxIncident = await IncidentModel.findOne({}, { incident_id: 1 }, { sort: { incident_id: -1 }, session });
     const maxIncidentId = maxIncident?.incident_id ?? 0;
     if (maxIncidentId >= counter.seq) {
       const bumped = await CounterModel.findOneAndUpdate(
         { name: "incident_id" },
         { $set: { seq: maxIncidentId + 1 } },
-        { new: true }
+        { new: true, session }
       );
       if (bumped) {
         return bumped.seq;
@@ -134,6 +143,7 @@ async function assertUserInTeam(
 function mapIncident(doc: Record<string, unknown>): Incident {
   const d = doc as IncidentDocumentShape;
   const now = new Date();
+  const policy = getDefaultIncidentSlaPolicy(d.severity);
   const sla = recomputeIncidentSlaSnapshot(
     d.severity,
     {
@@ -142,7 +152,8 @@ function mapIncident(doc: Record<string, unknown>): Incident {
       state: d.sla_state ?? "Running",
       stoppedAt: d.sla_stopped_at ?? null,
     },
-    now
+    now,
+    policy
   );
 
   return {
@@ -181,6 +192,70 @@ function mapIncidentWithNames(doc: Record<string, unknown>): IncidentWithNames {
   };
 }
 
+function buildSlaPolicyMap(
+  rules: Array<{ severity: IncidentSeverity; responseMinutes: number; resolutionMinutes: number }>
+): SlaPolicyMap {
+  return rules.reduce<SlaPolicyMap>((acc, rule) => {
+    acc[rule.severity] = {
+      responseMinutes: rule.responseMinutes,
+      resolutionMinutes: rule.resolutionMinutes,
+    };
+    return acc;
+  }, {});
+}
+
+function mapIncidentWithPolicy(doc: Record<string, unknown>, policyMap: SlaPolicyMap): Incident {
+  const d = doc as IncidentDocumentShape;
+  const now = new Date();
+  const policy = policyMap[d.severity] ?? getDefaultIncidentSlaPolicy(d.severity);
+  const sla = recomputeIncidentSlaSnapshot(
+    d.severity,
+    {
+      startedAt: d.sla_started_at ?? d.createdAt,
+      acknowledgedAt: d.acknowledged_at ?? null,
+      state: d.sla_state ?? "Running",
+      stoppedAt: d.sla_stopped_at ?? null,
+    },
+    now,
+    policy
+  );
+
+  return {
+    id: d._id.toString(),
+    incidentId: d.incident_id ?? 0,
+    teamId: d.team_id ?? 0,
+    title: d.title,
+    description: d.description,
+    severity: d.severity,
+    status: d.status,
+    boardOrder: d.board_order ?? new Date(d.createdAt).getTime(),
+    createdBy: getRefId(d.created_by),
+    assignedBy: getRefId(d.assigned_by),
+    assignedTo: getRefId(d.assigned_to),
+    resolvedOn: d.resolved_on ?? null,
+    closedOn: d.closed_on ?? null,
+    comment: d.comment ?? null,
+    sla: {
+      ...sla,
+      responseDueAt: d.response_due_at ?? sla.responseDueAt,
+      resolutionDueAt: d.resolution_due_at ?? sla.resolutionDueAt,
+    },
+    createdAt: d.createdAt,
+    updatedAt: d.updatedAt,
+  };
+}
+
+function mapIncidentWithNamesAndPolicy(doc: Record<string, unknown>, policyMap: SlaPolicyMap): IncidentWithNames {
+  const d = doc as IncidentDocumentShape;
+  const base = mapIncidentWithPolicy(doc, policyMap);
+  return {
+    ...base,
+    createdByName: capitalizeName(getRefName(d.created_by)),
+    assignedByName: capitalizeName(getRefName(d.assigned_by)),
+    assignedToName: capitalizeName(getRefName(d.assigned_to)),
+  };
+}
+
 const USER_POPULATE = [
   { path: "created_by", select: "name email" },
   { path: "assigned_by", select: "name email" },
@@ -189,65 +264,97 @@ const USER_POPULATE = [
 
 export async function listIncidents(): Promise<IncidentWithNames[]> {
   await connectMongo();
-  const docs = await IncidentModel.find().populate(USER_POPULATE).sort({ board_order: 1, createdAt: 1 });
-  return docs.map((d) => mapIncidentWithNames(d.toObject()));
+  const [docs, rules] = await Promise.all([
+    IncidentModel.find().populate(USER_POPULATE).sort({ board_order: 1, createdAt: 1 }),
+    listSlaRules(),
+  ]);
+  const policyMap = buildSlaPolicyMap(rules);
+  return docs.map((d) => mapIncidentWithNamesAndPolicy(d.toObject(), policyMap));
 }
 
 export async function listIncidentsForUser(userId: string): Promise<IncidentWithNames[]> {
   await connectMongo();
-  const memberships = await UserTeamModel.find({
-    user_id: toObjectId(userId, "User id"),
-  }).lean();
+  const [memberships, rules] = await Promise.all([
+    UserTeamModel.find({
+      user_id: toObjectId(userId, "User id"),
+    }).lean(),
+    listSlaRules(),
+  ]);
   const teamIds = memberships.map((membership) => membership.team_id);
   if (teamIds.length === 0) {
     return [];
   }
+  const policyMap = buildSlaPolicyMap(rules);
   const docs = await IncidentModel.find({ team_id: { $in: teamIds } })
     .populate(USER_POPULATE)
     .sort({ board_order: 1, createdAt: 1 });
-  return docs.map((d) => mapIncidentWithNames(d.toObject()));
+  return docs.map((d) => mapIncidentWithNamesAndPolicy(d.toObject(), policyMap));
 }
 
 export async function createIncident(
   data: CreateIncidentRepositoryInput
 ): Promise<Incident> {
-  await connectMongo();
-  const teamId = data.teamId;
-  await Promise.all([
-    assertUserInTeam(data.createdBy, teamId, "Creator is not a member of selected team"),
-    assertUserInTeam(data.assignedBy, teamId, "Assigned by user is not a member of selected team"),
-    assertUserInTeam(data.assignedTo, teamId, "Assignee is not a member of selected team"),
-  ]);
+  const mongo = await connectMongo();
+  const session = await mongo.startSession();
+  let createdDoc: Record<string, unknown> | null = null;
+  let createdPolicy: IncidentSlaPolicy | null = null;
 
-  const incidentId = await getNextIncidentId();
-  const sla = createIncidentSlaSnapshot(data.severity);
-  const created = await IncidentModel.create([
-    {
-      incident_id: incidentId,
-      team_id: teamId,
-      title: data.title,
-      description: data.description,
-      severity: data.severity,
-      status: data.status,
-      board_order: data.boardOrder,
-      created_by: toObjectId(data.createdBy, "Created by"),
-      assigned_by: toObjectId(data.assignedBy, "Assigned by"),
-      assigned_to: toObjectId(data.assignedTo, "Assigned to"),
-      comment: data.comment ?? null,
-      sla_started_at: sla.startedAt,
-      response_due_at: sla.responseDueAt,
-      resolution_due_at: sla.resolutionDueAt,
-      acknowledged_at: sla.acknowledgedAt,
-      sla_state: sla.state,
-      sla_stopped_at: sla.stoppedAt,
-    },
-  ]);
-  const createdDoc = created[0]?.toObject() ?? null;
+  try {
+    await session.withTransaction(async () => {
+      const teamId = data.teamId;
+      await Promise.all([
+        assertUserInTeam(data.createdBy, teamId, "Creator is not a member of selected team", session),
+        assertUserInTeam(data.assignedBy, teamId, "Assigned by user is not a member of selected team", session),
+        assertUserInTeam(data.assignedTo, teamId, "Assignee is not a member of selected team", session),
+      ]);
 
-  if (!createdDoc) {
-    throw new Error("Failed to create incident");
+      const incidentId = await getNextIncidentId(session);
+      const configuredRule = await findSlaRuleBySeverity(data.severity);
+      const policy = configuredRule
+        ? { responseMinutes: configuredRule.responseMinutes, resolutionMinutes: configuredRule.resolutionMinutes }
+        : getDefaultIncidentSlaPolicy(data.severity);
+      const sla = createIncidentSlaSnapshot(data.severity, new Date(), policy);
+      const created = await IncidentModel.create(
+        [
+          {
+            incident_id: incidentId,
+            team_id: teamId,
+            title: data.title,
+            description: data.description,
+            severity: data.severity,
+            status: data.status,
+            board_order: data.boardOrder,
+            created_by: toObjectId(data.createdBy, "Created by"),
+            assigned_by: toObjectId(data.assignedBy, "Assigned by"),
+            assigned_to: toObjectId(data.assignedTo, "Assigned to"),
+            comment: data.comment ?? null,
+            sla_started_at: sla.startedAt,
+            response_due_at: sla.responseDueAt,
+            resolution_due_at: sla.resolutionDueAt,
+            acknowledged_at: sla.acknowledgedAt,
+            sla_state: sla.state,
+            sla_stopped_at: sla.stoppedAt,
+          },
+        ],
+        { session }
+      );
+      createdDoc = created[0]?.toObject() ?? null;
+      createdPolicy = policy;
+    });
+
+    if (!createdDoc) {
+      throw new Error("Failed to create incident");
+    }
+    return mapIncidentWithPolicy(createdDoc, createdPolicy ? { [data.severity]: createdPolicy } : {});
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "";
+    if (message.includes("Transaction numbers are only allowed on a replica set member or mongos")) {
+      throw new Error("MongoDB transactions are required for incident id allocation");
+    }
+    throw error;
+  } finally {
+    await session.endSession();
   }
-  return mapIncident(createdDoc);
 }
 
 export async function findIncidentById(id: string): Promise<IncidentWithNames | null> {
@@ -255,8 +362,12 @@ export async function findIncidentById(id: string): Promise<IncidentWithNames | 
   if (!mongoose.Types.ObjectId.isValid(id)) {
     return null;
   }
-  const doc = await IncidentModel.findById(id).populate(USER_POPULATE);
-  return doc ? mapIncidentWithNames(doc.toObject()) : null;
+  const [doc, rules] = await Promise.all([
+    IncidentModel.findById(id).populate(USER_POPULATE),
+    listSlaRules(),
+  ]);
+  const policyMap = buildSlaPolicyMap(rules);
+  return doc ? mapIncidentWithNamesAndPolicy(doc.toObject(), policyMap) : null;
 }
 
 export async function findIncidentByIdForUser(
@@ -297,13 +408,17 @@ async function listAssignableTeamMembers(teamId: number): Promise<IncidentInboxI
 export async function listIncidentInboxForUser(userId: string): Promise<IncidentInboxItem[]> {
   await connectMongo();
   const assignedTo = toObjectId(userId, "User id");
-  const docs = await IncidentModel.find({
-    assigned_to: assignedTo,
-    status: "Open",
-    acknowledged_at: null,
-  })
-    .populate(USER_POPULATE)
-    .sort({ createdAt: -1 });
+  const [docs, rules] = await Promise.all([
+    IncidentModel.find({
+      assigned_to: assignedTo,
+      status: "Open",
+      acknowledged_at: null,
+    })
+      .populate(USER_POPULATE)
+      .sort({ createdAt: -1 }),
+    listSlaRules(),
+  ]);
+  const policyMap = buildSlaPolicyMap(rules);
 
   const teamIds = Array.from(new Set(docs.map((doc) => doc.team_id)));
   const assigneeMap = new Map<number, IncidentInboxItem["availableAssignees"]>();
@@ -315,7 +430,7 @@ export async function listIncidentInboxForUser(userId: string): Promise<Incident
   );
 
   return docs.map((doc) => ({
-    ...mapIncidentWithNames(doc.toObject()),
+    ...mapIncidentWithNamesAndPolicy(doc.toObject(), policyMap),
     availableAssignees: assigneeMap.get(doc.team_id) ?? [],
   }));
 }
@@ -384,12 +499,16 @@ export async function updateIncidentById(
     await applyAssignedToUpdate(mongoUpdates, updates.assignedTo, existing.team_id);
   }
 
-  const updated = await IncidentModel.findByIdAndUpdate(
-    id,
-    { $set: mongoUpdates },
-    { new: true }
-  ).populate(USER_POPULATE);
-  return updated ? mapIncidentWithNames(updated.toObject()) : null;
+  const [updated, rules] = await Promise.all([
+    IncidentModel.findByIdAndUpdate(
+      id,
+      { $set: mongoUpdates },
+      { new: true }
+    ).populate(USER_POPULATE),
+    listSlaRules(),
+  ]);
+  const policyMap = buildSlaPolicyMap(rules);
+  return updated ? mapIncidentWithNamesAndPolicy(updated.toObject(), policyMap) : null;
 }
 
 export async function deleteIncidentById(id: string): Promise<boolean> {

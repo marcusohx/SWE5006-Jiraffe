@@ -194,7 +194,7 @@ describe("user.repository — listUsers", () => {
     const result = await listUsers();
 
     expect(result).toHaveLength(2);
-    expect((result[0] as Record<string, unknown>).passwordHash).toBeUndefined();
+    expect((result[0] as unknown as Record<string, unknown>).passwordHash).toBeUndefined();
   });
 
   it("returns empty array when no users exist", async () => {

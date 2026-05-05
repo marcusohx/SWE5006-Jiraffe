@@ -141,6 +141,7 @@ describe("incident.controller - createIncidentController", () => {
       title: "Test Incident",
       description: "Desc",
       severity: "Low" as const,
+      status: "Open" as const,
       assignedBy: "u1",
       assignedTo: "u2",
     };

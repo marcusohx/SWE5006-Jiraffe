@@ -24,6 +24,8 @@ const {
   incidentDeleteOne,
   incidentFind,
   userTeamFind,
+  findSlaRuleBySeverityMock,
+  listSlaRulesMock,
 } = vi.hoisted(() => ({
   connectMongo: vi.fn(),
   startSession: vi.fn(),
@@ -38,6 +40,8 @@ const {
   incidentDeleteOne: vi.fn(),
   incidentFind: vi.fn(),
   userTeamFind: vi.fn(),
+  findSlaRuleBySeverityMock: vi.fn(),
+  listSlaRulesMock: vi.fn(),
 }));
 
 vi.mock("@/lib/db/mongodb", () => ({
@@ -63,6 +67,11 @@ vi.mock("@/modules/incident/incident.model", () => ({
     findByIdAndUpdate: incidentFindByIdAndUpdate,
     deleteOne: incidentDeleteOne,
   },
+}));
+
+vi.mock("@/modules/sla-rule/sla-rule.repository", () => ({
+  findSlaRuleBySeverity: findSlaRuleBySeverityMock,
+  listSlaRules: listSlaRulesMock,
 }));
 
 function makeObjectIdLike(value: string) {
@@ -129,19 +138,19 @@ function makeUpdatedDoc() {
   };
 }
 
+beforeEach(() => {
+  vi.clearAllMocks();
+  connectMongo.mockResolvedValue({ startSession });
+  startSession.mockResolvedValue({ withTransaction, endSession });
+  withTransaction.mockImplementation(async (callback: () => Promise<unknown>) => callback());
+  endSession.mockResolvedValue(undefined);
+  counterFindOneAndUpdate.mockResolvedValue({ seq: 7 });
+  incidentFindOne.mockResolvedValue(null);
+  findSlaRuleBySeverityMock.mockResolvedValue(null);
+  listSlaRulesMock.mockResolvedValue([]);
+});
+
 describe("incident.repository team scope", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    connectMongo.mockResolvedValue({ startSession });
-    startSession.mockResolvedValue({ withTransaction, endSession });
-    withTransaction.mockImplementation(async (callback: () => Promise<unknown>) => callback());
-    endSession.mockResolvedValue(undefined);
-
-    counterFindOneAndUpdate.mockResolvedValue({ seq: 7 });
-    incidentFindOne.mockResolvedValue(null);
-    userTeamFind.mockResolvedValue([]);
-  });
-
   it("creates incident when creator/assignedBy/assignee are members of selected team", async () => {
     userTeamCountDocuments.mockResolvedValue(1);
     incidentCreate.mockResolvedValue([makeCreateDoc()]);
@@ -159,24 +168,24 @@ describe("incident.repository team scope", () => {
       comment: null,
     });
 
-    expect(incidentCreate).toHaveBeenCalledWith([
-      expect.objectContaining({
-        incident_id: 7,
-        team_id: 2,
-      }),
-    ]);
+    expect(startSession).toHaveBeenCalledTimes(1);
+    expect(withTransaction).toHaveBeenCalledTimes(1);
+    expect(incidentCreate).toHaveBeenCalledWith(
+      [
+        expect.objectContaining({
+          incident_id: 7,
+          team_id: 2,
+        }),
+      ],
+      { session: expect.anything() }
+    );
     expect(created.teamId).toBe(2);
     expect(created.incidentId).toBe(7);
-    expect(startSession).not.toHaveBeenCalled();
-    expect(withTransaction).not.toHaveBeenCalled();
-    expect(endSession).not.toHaveBeenCalled();
+    expect(endSession).toHaveBeenCalledTimes(1);
   });
 
   it("rejects create when assignee is not in selected team", async () => {
-    userTeamCountDocuments
-      .mockResolvedValueOnce(1)
-      .mockResolvedValueOnce(1)
-      .mockResolvedValueOnce(0);
+    userTeamCountDocuments.mockResolvedValueOnce(1).mockResolvedValueOnce(1).mockResolvedValueOnce(0);
 
     await expect(
       createIncident({
@@ -192,10 +201,11 @@ describe("incident.repository team scope", () => {
         comment: null,
       })
     ).rejects.toThrow("Assignee is not a member of selected team");
+
     expect(counterFindOneAndUpdate).not.toHaveBeenCalled();
     expect(incidentCreate).not.toHaveBeenCalled();
-    expect(startSession).not.toHaveBeenCalled();
-    expect(endSession).not.toHaveBeenCalled();
+    expect(startSession).toHaveBeenCalledTimes(1);
+    expect(endSession).toHaveBeenCalledTimes(1);
   });
 
   it("propagates incident creation failures after allocating an incident id", async () => {
@@ -216,16 +226,15 @@ describe("incident.repository team scope", () => {
         comment: null,
       })
     ).rejects.toThrow("insert failed");
+
     expect(counterFindOneAndUpdate).toHaveBeenCalledTimes(1);
-    expect(startSession).not.toHaveBeenCalled();
-    expect(endSession).not.toHaveBeenCalled();
+    expect(startSession).toHaveBeenCalledTimes(1);
+    expect(endSession).toHaveBeenCalledTimes(1);
   });
 
   it("bootstraps counter to max incident_id + 1 when counter is behind", async () => {
     userTeamCountDocuments.mockResolvedValue(1);
-    counterFindOneAndUpdate
-      .mockResolvedValueOnce({ seq: 1 })
-      .mockResolvedValueOnce({ seq: 13 });
+    counterFindOneAndUpdate.mockResolvedValueOnce({ seq: 1 }).mockResolvedValueOnce({ seq: 13 });
     incidentFindOne.mockResolvedValue({ incident_id: 12 });
     incidentCreate.mockResolvedValue([makeCreateDoc()]);
 
@@ -246,13 +255,13 @@ describe("incident.repository team scope", () => {
       1,
       { name: "incident_id" },
       { $inc: { seq: 1 } },
-      { new: true, upsert: true }
+      { new: true, upsert: true, session: expect.anything() }
     );
     expect(counterFindOneAndUpdate).toHaveBeenNthCalledWith(
       2,
       { name: "incident_id" },
       { $set: { seq: 13 } },
-      { new: true }
+      { new: true, session: expect.anything() }
     );
   });
 
@@ -333,12 +342,7 @@ describe("incident.repository team scope", () => {
   });
 });
 
-describe("incident.repository — findIncidentById", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    connectMongo.mockResolvedValue({ startSession });
-  });
-
+describe("incident.repository - findIncidentById", () => {
   it("returns null for invalid ObjectId", async () => {
     const result = await findIncidentById("not-a-valid-id");
     expect(result).toBeNull();
@@ -366,12 +370,7 @@ describe("incident.repository — findIncidentById", () => {
   });
 });
 
-describe("incident.repository — deleteIncidentById", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    connectMongo.mockResolvedValue({ startSession });
-  });
-
+describe("incident.repository - deleteIncidentById", () => {
   it("returns false for invalid ObjectId", async () => {
     const result = await deleteIncidentById("not-a-valid-id");
     expect(result).toBe(false);
@@ -393,12 +392,7 @@ describe("incident.repository — deleteIncidentById", () => {
   });
 });
 
-describe("incident.repository — listIncidents", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    connectMongo.mockResolvedValue({ startSession });
-  });
-
+describe("incident.repository - listIncidents", () => {
   it("returns all mapped incidents", async () => {
     incidentFind.mockReturnValue({
       populate: vi.fn().mockReturnValue({
@@ -412,12 +406,7 @@ describe("incident.repository — listIncidents", () => {
   });
 });
 
-describe("incident.repository — listIncidentsForUser", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    connectMongo.mockResolvedValue({ startSession });
-  });
-
+describe("incident.repository - listIncidentsForUser", () => {
   it("returns empty array when user has no team memberships", async () => {
     userTeamFind.mockReturnValue({ lean: vi.fn().mockResolvedValue([]) });
 
@@ -444,12 +433,7 @@ describe("incident.repository — listIncidentsForUser", () => {
   });
 });
 
-describe("incident.repository — findIncidentByIdForUser", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    connectMongo.mockResolvedValue({ startSession });
-  });
-
+describe("incident.repository - findIncidentByIdForUser", () => {
   it("returns null when underlying incident is not found", async () => {
     incidentFindById.mockReturnValue({
       populate: vi.fn().mockResolvedValue(null),
@@ -481,46 +465,29 @@ describe("incident.repository — findIncidentByIdForUser", () => {
   });
 });
 
-describe("incident.repository — createIncident standalone MongoDB", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    connectMongo.mockResolvedValue({ startSession });
-    startSession.mockResolvedValue({ withTransaction, endSession });
-    endSession.mockResolvedValue(undefined);
-  });
-
-  it("creates incidents without requiring MongoDB transactions", async () => {
+describe("incident.repository - createIncident standalone MongoDB", () => {
+  it("throws a clear error when MongoDB transactions are unavailable", async () => {
     userTeamCountDocuments.mockResolvedValue(1);
-    incidentCreate.mockResolvedValue([makeCreateDoc()]);
-    withTransaction.mockRejectedValue(
-      new Error("Transaction numbers are only allowed on a replica set member or mongos")
-    );
+    withTransaction.mockRejectedValue(new Error("Transaction numbers are only allowed on a replica set member or mongos"));
 
-    const created = await createIncident({
-      teamId: 2,
-      title: "T1",
-      description: "D1",
-      severity: "Low",
-      status: "Open",
-      boardOrder: 1000,
-      createdBy: "67dc66fd6f57fd4fce4d8548",
-      assignedBy: "67dc66fd6f57fd4fce4d8548",
-      assignedTo: "67dc66fd6f57fd4fce4d8548",
-      comment: null,
-    });
-
-    expect(created.incidentId).toBe(7);
-    expect(startSession).not.toHaveBeenCalled();
-    expect(withTransaction).not.toHaveBeenCalled();
+    await expect(
+      createIncident({
+        teamId: 2,
+        title: "T1",
+        description: "D1",
+        severity: "Low",
+        status: "Open",
+        boardOrder: 1000,
+        createdBy: "67dc66fd6f57fd4fce4d8548",
+        assignedBy: "67dc66fd6f57fd4fce4d8548",
+        assignedTo: "67dc66fd6f57fd4fce4d8548",
+        comment: null,
+      })
+    ).rejects.toThrow("MongoDB transactions are required for incident id allocation");
   });
 });
 
-describe("incident.repository — listIncidentInboxForUser", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    connectMongo.mockResolvedValue({ startSession });
-  });
-
+describe("incident.repository - listIncidentInboxForUser", () => {
   it("returns inbox incidents with available assignees", async () => {
     incidentFind.mockReturnValue({
       populate: vi.fn().mockReturnValue({
